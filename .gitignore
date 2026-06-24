@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+data_env/
+.venv/
+venv/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Raw datasets (large files — re-download via scripts or see data/raw/README.md)
+data/raw/**/*
+!data/raw/**/
+!data/raw/**/.gitkeep
+!data/raw/README.md
+
+# Processed/interim data (generated artifacts)
+data/processed/**/*
+!data/processed/**/
+!data/processed/**/.gitkeep
+!data/processed/**/README.md
+data/interim/**/*
+!data/interim/**/
+!data/interim/**/.gitkeep
+
+# Database dumps and local exports
+*.sql.gz
+*.dump
+
+# Benchmark outputs
+reports/benchmarks/*.csv
+reports/benchmarks/*.json
+
+# Generated validation maps (regenerate via scripts/visualize_*.py)
+output/**/*
+!output/**/
+!output/**/.gitkeep
