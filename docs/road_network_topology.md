@@ -22,9 +22,9 @@ This work produces that graph using **OSMnx**, which:
 
 ## 2. Approach
 
-### 2.1 Why not manual vertex extraction?
+### 2.1 Why OSMnx instead of raw line shapefiles?
 
-An initial attempt extracted nodes by snapping consecutive polyline vertices. That approach **failed** for routing: roads meeting another road mid-segment (T-junctions) were not connected unless coordinates happened to match exactly.
+Raw HOT OSM exports are line segments without intersection nodes. Snapping consecutive vertices fails at T-junctions where one road meets another mid-segment. OSMnx builds topology from native OSM node–way structure and simplifies to intersection/dead-end nodes only.
 
 ### 2.2 Chosen pipeline
 
@@ -107,13 +107,15 @@ The original Phase 1 validation map (`output/south_sudan_data_validation.html`) 
 
 ---
 
-## 5. Neo4j import shape (planned)
+## 5. Neo4j import shape (Phase 3 preview)
 
-The processed graph maps naturally to a property graph:
+The processed road graph maps to a property graph. Phase 2 will extend it with facility and camp nodes:
 
-- **Node label:** `RoadNode` — properties: `node_id`, `lat`, `lon`, `degree`
-- **Relationship:** `ROAD_SEGMENT` — properties: `edge_id`, `osm_id`, `highway`, `length_m`, `name`, …
-- **Direction:** `(start_node)-[:ROAD_SEGMENT]->(end_node)` (respect `oneway` during import)
+- **Node labels:** `RoadNode`, `HealthFacility`, `DisplacementSite`
+- **Relationships:** `ROAD_SEGMENT` (road edges), `CONNECTOR` (POI to nearest road node)
+- **Road segment properties:** `edge_id`, `osm_id`, `highway`, `length_m`, …
+
+Full augmented model will be defined in Phase 2 schema documents.
 
 ---
 
@@ -144,6 +146,15 @@ python scripts/visualize_road_topology.py
 | Primary road network for graph DB | **OSMnx processed graph** from live OSM (Geofabrik), not raw HDX line shapefile |
 | Highway filter | `primary`, `secondary`, `tertiary`, `unclassified` (consistent with Phase 1) |
 | Node definition | Intersections and dead-ends only (OSMnx `simplify_graph`) |
-| T-junction handling | OSMnx native topology (not manual coordinate snapping) |
+| T-junction handling | OSMnx native topology |
 
-Remaining Phase 2 decisions (health facilities canonical file, IOM DTM round, IDMC role) are unchanged — see `AGENT.md`.
+Remaining Phase 2 work:
+
+| Topic | Planned approach |
+|-------|------------------|
+| Health facilities | Merge WHO 2025 + SS 2023 into canonical dataset |
+| Displacement sites | IOM DTM Round 11; snap to road graph |
+| POI–road linking | Nearest intersection node + connector edge |
+| IDMC national data | National context only; not in spatial graph |
+
+See `docs/phase2_data_modeling.md`.

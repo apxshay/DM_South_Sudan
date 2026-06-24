@@ -530,8 +530,20 @@ Phase 1 noted that HOT OSM road segments lack explicit node identifiers (Section
 | Highway filter | Same as Section 3.1: `primary`, `secondary`, `tertiary`, `unclassified` |
 | Output nodes | 24,779 (intersections and dead-ends only) |
 | Output edges | 62,345 (with `length_m`, `highway`, `start_node_id`, `end_node_id`) |
-| T-junction handling | OSMnx native topology (replaces rejected manual vertex-snapping approach) |
+| T-junction handling | OSMnx native topology |
 
 Full report: `docs/road_network_topology.md`  
 Processed files: `data/processed/roads_hotosm/`  
 Validation map: `output/south_sudan_road_topology_validation.html`
+
+---
+
+## 11. Phase 2 — Data Modeling (planned)
+
+Building on the road graph above, Phase 2 will:
+
+1. **Reconcile health facilities** — merge WHO 2025 (1,988 rows) and SS 2023 (1,513 rows) into one canonical dataset; resolve schema differences, duplicate codes, and missing coordinates (see Section 4).
+2. **Integrate POIs into the network** — snap ~1,900 health facilities and 77 IOM DTM Round 11 displacement sites to the nearest road intersection node; add connector edges so facilities and camps participate in pathfinding.
+3. **Design schemas** — relational (PostgreSQL/PostGIS) and graph (Neo4j) models for the augmented network.
+
+Progress: `docs/phase2_data_modeling.md`

@@ -74,10 +74,12 @@ Analyze all datasets and produce:
 
 ### Phase 2 — Data Modeling
 
-Design:
+Prepare import-ready datasets and schemas:
 
-* Relational schema
-* Graph schema
+* Reconcile health facility sources (WHO 2025 and SS 2023) into one canonical table
+* Connect health facilities and displacement sites to the road graph (nearest intersection node + connector edge)
+* Design relational schema (PostgreSQL/PostGIS) and graph schema (Neo4j)
+* Document decisions and outputs in `docs/phase2_data_modeling.md`
 
 The two models should represent the same domain while remaining natural for their respective database technologies.
 
@@ -145,9 +147,15 @@ When working on any task:
 
 All raw datasets have been downloaded, profiled, and documented. Visual validation maps are available for both raw data and the processed road graph.
 
-**Road network topology (2026-06-24): COMPLETE**
+**Road network topology: COMPLETE** (2026-06-24)
 
-An OSMnx-based driveable road graph for South Sudan has been built with proper T-junction connectivity. Processed node/edge layers and an interactive topology validation map are available locally. No database schemas, ETL pipelines, or benchmarks exist yet.
+An OSMnx-based driveable road graph for South Sudan has been built with proper T-junction connectivity. Processed node/edge layers and an interactive topology validation map are available locally.
+
+**Phase 2 — Data Modeling: IN PROGRESS**
+
+Health facility reconciliation complete (2,251 canonical facilities; 2,017 with valid coordinates; state codes harmonized to SS00–SS10). Network integration and database schemas pending.
+
+Regenerate Phase 2 outputs: `python scripts/merge_health_facilities.py` or `./scripts/bootstrap.sh --from merge`.
 
 ### Repository layout
 
@@ -165,13 +173,16 @@ data_management/
 │   │   ├── idp/                      # IDMC annual + disaster CSVs
 │   │   └── displacement_sites/       # IOM DTM site assessments (rounds 4–11)
 │   ├── processed/                    # Generated graph layers (excluded from git)
-│   │   └── roads_hotosm/             # OSMnx nodes, edges, topology_summary.json
+│   │   ├── roads_hotosm/             # OSMnx road nodes, edges, topology_summary.json
+│   │   ├── health_facilities/        # Phase 2: canonical merged facilities (planned)
+│   │   └── network/                  # Phase 2: POI nodes, connector edges (planned)
 │   └── interim/                      # OSMnx build cache (excluded from git)
 │       └── osmnx/
 ├── docs/
 │   ├── phase1_data_understanding.md  # Full Phase 1 analysis report
 │   ├── phase1_profile.json           # Machine-readable profiles
-│   └── road_network_topology.md      # Road graph extraction report (2026-06-24)
+│   ├── road_network_topology.md      # Road graph extraction report
+│   └── phase2_data_modeling.md       # Phase 2 progress log
 ├── output/                           # Generated HTML maps (excluded from git)
 ├── scripts/
 │   ├── setup.ps1                     # Windows + Miniforge bootstrap
@@ -183,6 +194,11 @@ data_management/
 │   ├── visualize_data_validation.py  # Phase 1 Folium validation map
 │   ├── build_road_network_topology.py # OSMnx road graph extraction
 │   ├── visualize_road_topology.py    # Topology validation map (toggleable nodes/edges)
+│   ├── merge_health_facilities.py    # Phase 2: WHO + SS 2023 canonical merge
+│   ├── health_facility_admin.py      # Phase 2: admin/state harmonization helpers
+│   ├── bootstrap.ps1 / bootstrap.sh  # Full pipeline runner (all platforms)
+│   ├── setup_conda.sh                # macOS/Linux conda bootstrap
+│   ├── resolve_python.sh             # Resolve conda env or venv python
 │   └── project_paths.py              # Shared paths and directory bootstrap
 └── src/                              # Placeholder for future code
     ├── etl/
@@ -203,13 +219,23 @@ data_management/
 
 Raw data is **not committed to git** (see `.gitignore`). Re-download with `./scripts/download_datasets.sh`.
 
-### Road network topology (2026-06-24)
+### Resolved decisions (carry into Phase 2)
 
-1. **Manual vertex extraction rejected:** Snapping polyline vertices produced ~685k nodes but failed T-junction connectivity — roads crossing mid-segment were not connected.
-2. **OSMnx pipeline adopted:** Geofabrik South Sudan OSM extract → `osmium tags-filter` → `ox.graph.graph_from_xml(simplify=True)`.
-3. **Processed graph:** 24,779 nodes, 62,345 edges, 17,795 junction nodes, ~79,442 km total length.
-4. **Highway filter:** `primary`, `secondary`, `tertiary`, `unclassified` (consistent with Phase 1 HOT OSM filter).
-5. **Primary road network for graph DB:** OSMnx processed graph (`data/processed/roads_hotosm/`), not raw HDX line shapefile.
+| Topic | Decision |
+|-------|----------|
+| Primary road network | OSMnx processed graph (`data/processed/roads_hotosm/`) |
+| Highway filter | `primary`, `secondary`, `tertiary`, `unclassified` |
+| Displacement sites for spatial graph | IOM DTM **Round 11** (77 sites, full GPS) |
+| IDMC national IDP data | Context only — not part of the spatial graph |
+| POI–road linking (Phase 2) | Snap each facility/camp to nearest road intersection node; add connector edge |
+
+### Road network topology summary (2026-06-24)
+
+1. **OSMnx pipeline:** Geofabrik South Sudan OSM extract → highway filter → `graph_from_xml(simplify=True)`.
+2. **Processed graph:** 24,779 nodes, 62,345 edges, 17,795 junction nodes, ~79,442 km total length.
+3. **T-junction connectivity:** handled by OSMnx; raw HDX line shapefiles are not used for routing.
+
+Full report: `docs/road_network_topology.md`
 
 ### Phase 1 key findings
 
@@ -228,6 +254,7 @@ Full analysis: `docs/phase1_data_understanding.md`
 | Phase 1 report | `docs/phase1_data_understanding.md` | Yes |
 | Machine-readable profile | `docs/phase1_profile.json` | Yes |
 | Road topology report | `docs/road_network_topology.md` | Yes |
+| Phase 2 progress log | `docs/phase2_data_modeling.md` | Yes |
 | Phase 1 validation map | `output/south_sudan_data_validation.html` | No (regenerate locally) |
 | Topology validation map | `output/south_sudan_road_topology_validation.html` | No (regenerate locally) |
 | Road graph nodes | `data/processed/roads_hotosm/road_nodes.gpkg` | No (regenerate locally) |
@@ -253,25 +280,33 @@ Full topology methodology: `docs/road_network_topology.md`
 ```powershell
 .\scripts\setup.ps1
 conda activate dm-south-sudan
-python scripts\download_datasets.py
-python scripts\explore_datasets.py
-python scripts\visualize_data_validation.py
-python scripts\build_road_network_topology.py
-python scripts\visualize_road_topology.py
+.\scripts\bootstrap.ps1
 ```
 
-**macOS / Linux (venv):**
+**macOS / Linux + Miniforge (recommended):**
+
+```bash
+chmod +x scripts/*.sh
+./scripts/setup_conda.sh
+conda activate dm-south-sudan
+./scripts/bootstrap.sh
+```
+
+**macOS / Linux (venv fallback):**
 
 ```bash
 ./scripts/setup.sh
-./scripts/download_datasets.sh
-data_env/bin/python scripts/explore_datasets.py
-data_env/bin/python scripts/visualize_data_validation.py
-data_env/bin/python scripts/build_road_network_topology.py
-data_env/bin/python scripts/visualize_road_topology.py
+./scripts/bootstrap.sh
 ```
 
-**Conda on any OS:**
+**Resume after clone/pull** (raw/processed data are gitignored):
+
+```bash
+./scripts/bootstrap.sh --skip-download          # reuse data/raw/
+./scripts/bootstrap.sh --from merge             # Phase 2 merge only
+```
+
+**Conda on any OS (manual):**
 
 ```bash
 conda env create -f environment.yml
@@ -279,10 +314,10 @@ conda activate dm-south-sudan
 python scripts/create_dirs.py
 python scripts/download_datasets.py
 python scripts/build_road_network_topology.py
-python scripts/visualize_road_topology.py
+python scripts/merge_health_facilities.py
 ```
 
-GeoPandas/GDAL on Windows should be installed via **conda-forge** (`environment.yml`), not pip alone. Road topology also requires **osmium-tool** (conda-forge) and **osmnx** (pip).
+GeoPandas/GDAL should be installed via **conda-forge** (`environment.yml`), not pip alone. Road topology requires **osmium-tool** (conda-forge) and **osmnx** (pip).
 
 ---
 
@@ -290,13 +325,14 @@ GeoPandas/GDAL on Windows should be installed via **conda-forge** (`environment.
 
 **Phase 2 — Data Modeling**
 
-Design relational and graph schemas based on Phase 1 findings and the processed road graph. Open decisions include:
+1. **Health facility reconciliation** — merge WHO 2025 (1,988 rows) and SS 2023 (1,513 rows) into one canonical dataset; resolve duplicate codes, schema differences, and missing coordinates (Phase 1 Section 4).
+2. **Network integration** — for each health facility (~1,900 with coordinates) and displacement site (77, IOM DTM Round 11), find the nearest road intersection node and add a connector edge to the augmented graph.
+3. **Schema design** — document relational (PostgreSQL/PostGIS) and graph (Neo4j) models aligned with the augmented network.
+4. **Reporting** — log progress in `docs/phase2_data_modeling.md` after each major step.
 
-* ~~Which road network to use as primary~~ → **Resolved:** OSMnx processed graph (`data/processed/roads_hotosm/`)
-* Which health facility file to treat as canonical (WHO 2025 vs SS 2023, or merged)
-* Which IOM DTM assessment round to use (Round 11 recommended)
-* Role of IDMC data (national context vs site-level spatial queries via IOM DTM)
-* How to link hospitals and displacement sites to the road graph (snap-to-nearest node, admin-code joins, or both)
+**Resolved:** primary road network (OSMnx graph), displacement round (Round 11), POI linking method (snap to nearest road node + connector edge).
+
+**Still open:** exact health-facility merge rules; handling facilities without coordinates; IDMC data role in schemas (national context only).
 
 Reference documents:
 - `docs/phase1_data_understanding.md`

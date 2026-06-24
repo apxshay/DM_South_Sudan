@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Bootstrap the project environment on macOS/Linux (venv).
-# For Windows + Miniforge, use: .\scripts\setup.ps1
-# For conda on any OS: conda env create -f environment.yml && conda activate dm-south-sudan
+# Bootstrap the project with a local venv on macOS/Linux.
+# For geospatial + road topology (osmium-tool), prefer Conda instead:
+#   ./scripts/setup_conda.sh
 # Usage: ./scripts/setup.sh
 
 set -euo pipefail
@@ -12,7 +12,7 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 echo "==> Checking prerequisites..."
 command -v "$PYTHON_BIN" >/dev/null 2>&1 || {
-  echo "ERROR: python3 not found. Install Python 3.11+ or use Miniforge with environment.yml." >&2
+  echo "ERROR: python3 not found. Install Python 3.11+ or use ./scripts/setup_conda.sh." >&2
   exit 1
 }
 
@@ -23,8 +23,11 @@ if [[ "$PY_MAJOR" -lt 3 ]] || [[ "$PY_MAJOR" -eq 3 && "$PY_MINOR" -lt 11 ]]; the
 fi
 
 if command -v conda >/dev/null 2>&1; then
-  echo "NOTE: Miniforge/Conda detected. On Windows, prefer: .\\scripts\\setup.ps1"
-  echo "      On any OS you may instead run: conda env create -f environment.yml"
+  cat <<EOF
+NOTE: Miniforge/Conda detected.
+      For full pipeline support (GeoPandas/GDAL + osmium-tool), prefer:
+        ./scripts/setup_conda.sh
+EOF
 fi
 
 echo "==> Creating virtual environment at data_env/ ..."
@@ -46,12 +49,15 @@ echo "==> Installing Python dependencies..."
 echo "==> Creating data directories..."
 "$PYTHON" "$ROOT/scripts/create_dirs.py"
 
-echo ""
-echo "Setup complete."
-echo ""
-echo "Next steps:"
-echo "  1. ./scripts/download_datasets.sh"
-echo "  2. $PYTHON scripts/explore_datasets.py"
-echo "  3. $PYTHON scripts/visualize_data_validation.py"
-echo "  4. $PYTHON scripts/build_road_network_topology.py"
-echo "  5. $PYTHON scripts/visualize_road_topology.py"
+cat <<EOF
+
+Setup complete (venv).
+
+WARNING: pip-only installs may not include osmium-tool, required by
+         scripts/build_road_network_topology.py. If road topology fails,
+         use ./scripts/setup_conda.sh instead.
+
+Next steps:
+  1. ./scripts/bootstrap.sh
+     # or ./scripts/download_datasets.sh and run scripts individually
+EOF
