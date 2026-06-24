@@ -151,6 +151,7 @@ All raw datasets have been downloaded, profiled, and documented. A visual valida
 data_management/
 ├── AGENT.md                          # This file
 ├── README.md                           # Setup and usage instructions
+├── environment.yml                     # Conda/Miniforge environment (recommended on Windows)
 ├── requirements.txt
 ├── data/raw/                           # HDX datasets (excluded from git)
 │   ├── roads/                          # Humanitarian basemap (976 segments)
@@ -163,8 +164,11 @@ data_management/
 │   └── phase1_profile.json             # Machine-readable profiles
 ├── output/                             # Generated HTML maps (excluded from git)
 ├── scripts/
-│   ├── setup.sh                        # Bootstrap venv + directories
-│   ├── download_datasets.sh            # Download all HDX datasets
+│   ├── setup.ps1                       # Windows + Miniforge bootstrap
+│   ├── setup.sh                        # macOS/Linux venv bootstrap
+│   ├── download_datasets.py            # Cross-platform HDX downloader
+│   ├── download_datasets.sh            # Unix wrapper for download_datasets.py
+│   ├── create_dirs.py                  # Create data/output directories
 │   ├── explore_datasets.py             # Regenerate phase1_profile.json
 │   └── visualize_data_validation.py    # Interactive Folium validation map
 └── src/                                # Placeholder for future code
@@ -211,12 +215,35 @@ The validation map currently shows:
 
 ### Bootstrap on a new machine
 
+**Windows 10 + Miniforge (recommended):**
+
+```powershell
+.\scripts\setup.ps1
+conda activate dm-south-sudan
+python scripts\download_datasets.py
+python scripts\explore_datasets.py
+python scripts\visualize_data_validation.py
+```
+
+**macOS / Linux (venv):**
+
 ```bash
 ./scripts/setup.sh
 ./scripts/download_datasets.sh
 data_env/bin/python scripts/explore_datasets.py
 data_env/bin/python scripts/visualize_data_validation.py
 ```
+
+**Conda on any OS:**
+
+```bash
+conda env create -f environment.yml
+conda activate dm-south-sudan
+python scripts/create_dirs.py
+python scripts/download_datasets.py
+```
+
+GeoPandas/GDAL on Windows should be installed via **conda-forge** (`environment.yml`), not pip alone.
 
 ---
 

@@ -6,48 +6,68 @@ Master's degree project comparing **PostgreSQL (RDBMS)** and **Neo4j (graph DB)*
 
 ## Quick start
 
-```bash
-# 1. Clone and enter the repo
+### Windows 10 + Miniforge (recommended)
+
+```powershell
 git clone https://github.com/apxshay/DM_South_Sudan.git
 cd DM_South_Sudan
 
-# 2. Create virtual environment and install dependencies
+# In PowerShell (or "Miniforge Prompt"):
+.\scripts\setup.ps1
+conda activate dm-south-sudan
+
+python scripts\download_datasets.py
+python scripts\explore_datasets.py
+python scripts\visualize_data_validation.py
+```
+
+### macOS / Linux (venv)
+
+```bash
+git clone https://github.com/apxshay/DM_South_Sudan.git
+cd DM_South_Sudan
+
 ./scripts/setup.sh
-
-# 3. Download raw datasets from HDX (requires curl, unzip, network)
 ./scripts/download_datasets.sh
-
-# 4. Regenerate data profiles and validation map
 data_env/bin/python scripts/explore_datasets.py
 data_env/bin/python scripts/visualize_data_validation.py
+```
+
+### Conda on any OS (manual)
+
+```bash
+conda env create -f environment.yml
+conda activate dm-south-sudan
+python scripts/create_dirs.py
+python scripts/download_datasets.py
+python scripts/explore_datasets.py
+python scripts/visualize_data_validation.py
 ```
 
 Open `output/south_sudan_data_validation.html` in a browser for the interactive validation map.
 
 ## Requirements
 
-- Python 3.11+
-- `curl` and `unzip` (for dataset download)
-- ~600 MB disk space for raw datasets (HOT OSM roads is ~50 MB compressed)
+- **Windows:** Miniforge or Conda with `conda-forge` channel (GeoPandas/GDAL)
+- **macOS/Linux:** Python 3.11+ venv, or Conda as above
+- Network access for HDX dataset download (~600 MB total; HOT OSM roads ~50 MB compressed)
+- No `curl` or `unzip` required — downloads use pure Python (`requests` + `zipfile`)
 
 ## Project structure
 
 ```
-├── AGENT.md                 # Orchestrator agent instructions and project status
-├── data/
-│   ├── raw/                 # Downloaded HDX datasets (not in git — see data/raw/README.md)
-│   ├── processed/           # Future ETL outputs
-│   └── interim/             # Future intermediate artifacts
-├── docs/
-│   ├── phase1_data_understanding.md
-│   └── phase1_profile.json
+├── AGENT.md
+├── environment.yml          # Conda environment (Windows / cross-platform)
+├── requirements.txt         # pip fallback for venv setups
+├── data/raw/                # HDX datasets (not in git)
+├── docs/                    # Phase 1 reports and profiles
 ├── output/                  # Generated HTML maps (not in git)
-├── scripts/
-│   ├── setup.sh             # Environment bootstrap
-│   ├── download_datasets.sh # HDX data download
-│   ├── explore_datasets.py  # Dataset profiling
-│   └── visualize_data_validation.py
-└── src/                     # Future ETL, DB, queries, benchmarks
+└── scripts/
+    ├── setup.ps1            # Windows + Miniforge bootstrap
+    ├── setup.sh             # macOS/Linux venv bootstrap
+    ├── download_datasets.py # Cross-platform HDX downloader
+    ├── explore_datasets.py
+    └── visualize_data_validation.py
 ```
 
 ## Datasets

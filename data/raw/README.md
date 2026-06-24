@@ -12,4 +12,4 @@ Source datasets for the South Sudan RDBMS vs Graph DB comparison project.
 
 Downloaded files are stored under each folder's `original/` subfolder. Compressed archives are extracted alongside `original/`.
 
-Raw data files are excluded from version control (see `.gitignore`). Re-download using `scripts/download_datasets.sh` if needed.
+Raw data files are excluded from version control (see `.gitignore`). Re-download using `python scripts/download_datasets.py` (all platforms) or `./scripts/download_datasets.sh` (macOS/Linux).

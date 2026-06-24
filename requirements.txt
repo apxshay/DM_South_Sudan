@@ -1,4 +1,6 @@
 # Data exploration and processing
+# NOTE: On Windows, use environment.yml (conda-forge) for geopandas/GDAL.
+#       pip-only installs of geopandas may fail without GDAL system libraries.
 pandas>=2.0
 numpy>=1.24
 openpyxl>=3.1
