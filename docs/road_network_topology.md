@@ -4,6 +4,8 @@
 **Date:** 2026-06-24  
 **Status:** Complete — processed graph ready for Neo4j / PostgreSQL modeling
 
+**Regenerate:** [`README.md`](../README.md) Step 2, or `python scripts/build_road_network_topology.py` (+ `visualize_road_topology.py`). Works on Windows and macOS with conda env `dm-south-sudan` (requires osmium-tool from conda-forge).
+
 ---
 
 ## 1. Purpose

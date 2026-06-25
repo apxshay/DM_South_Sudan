@@ -95,14 +95,14 @@ if (Test-ShouldRun "explore") { Run-Step "Phase 1 profiling" "explore_datasets.p
 if (Test-ShouldRun "validate") { Run-Step "Phase 1 validation map" "visualize_data_validation.py" }
 if (Test-ShouldRun "roads") { Run-Step "Road network topology (OSMnx)" "build_road_network_topology.py" }
 if (Test-ShouldRun "topology") { Run-Step "Road topology validation map" "visualize_road_topology.py" }
-if (Test-ShouldRun "merge") { Run-Step "Phase 2 — health facility merge" "merge_health_facilities.py" }
+if (Test-ShouldRun "merge") { Run-Step "Phase 2 - health facility merge" "merge_health_facilities.py" }
 if (Test-ShouldRun "network") {
-    Run-Step "Phase 2 — network integration" "integrate_network.py"
+    Run-Step "Phase 2 - network integration" "integrate_network.py"
     Run-Step "Augmented network validation map" "visualize_augmented_network.py"
-    Run-Step "Phase 2 — admin dimensions" "build_admin_dimensions.py"
-    Run-Step "Phase 2 — displacement sites" "build_displacement_sites.py"
-    Run-Step "Phase 2 — reference data" "build_reference_data.py"
-    Run-Step "Phase 2 — DB import layers" "prepare_db_import_layers.py"
+    Run-Step "Phase 2 - admin dimensions" "build_admin_dimensions.py"
+    Run-Step "Phase 2 - displacement sites" "build_displacement_sites.py"
+    Run-Step "Phase 2 - reference data" "build_reference_data.py"
+    Run-Step "Phase 2 - DB import layers" "prepare_db_import_layers.py"
 }
 
 Write-Host ""
@@ -118,8 +118,7 @@ Write-Host "  output/south_sudan_data_validation.html"
 Write-Host "  output/south_sudan_road_topology_validation.html"
 Write-Host "  output/south_sudan_augmented_network_validation.html"
 Write-Host ""
-Write-Host "Next: Phase 3 database population"
+Write-Host "Next: Phase 3 — see README.md Steps 3-5"
 Write-Host "  copy .env.example .env"
 Write-Host "  docker compose up -d"
 Write-Host "  python scripts\populate_databases.py --reset"
-Write-Host "  See docs\phase3_database_population.md"

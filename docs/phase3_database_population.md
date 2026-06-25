@@ -2,79 +2,68 @@
 
 **Project:** South Sudan RDBMS vs Graph DB comparison  
 **Date:** 2026-06-25  
-**Status:** Complete — loaders implemented and validated (development on macOS; **recommended benchmark host: Windows 10 + AMD Ryzen 5**)
+**Status:** Complete — loaders validated on macOS (development) and Windows 10 amd64 (benchmark host)
+
+**Setup guide:** follow [`README.md`](../README.md) for the full Windows and macOS pipeline (Steps 1–6). **Day-to-day usage** (connect, query, GUI): [`database_usage_guide.md`](database_usage_guide.md). This document records **what was built**, **expected counts**, **platform differences**, and **known issues**.
 
 ---
 
-## Platform guidance (read before benchmarking)
+## Platform guidance
 
-| Platform | CPU arch | Neo4j Docker | PostGIS Docker | Fair RDBMS vs graph timing? |
-|----------|----------|--------------|----------------|-------------------------------|
-| **Windows 10 + Ryzen 5** | `amd64` native | `linux/amd64` native | `linux/amd64` native | **Yes — recommended** |
-| macOS Apple Silicon (M1/M2) | `arm64` | `linux/arm64` native | `linux/amd64` **emulated** | **No** — PostgreSQL penalized |
-| macOS Intel | `amd64` | native | native | Yes |
+| Platform | CPU | Neo4j Docker | PostGIS Docker | Use for Phase 5 timings? |
+|----------|-----|--------------|----------------|--------------------------|
+| **Windows 10/11 + Ryzen** | `amd64` | `linux/amd64` native | `linux/amd64` native | **Yes — recommended** |
+| macOS Apple Silicon | `arm64` | `linux/arm64` native | `linux/amd64` **emulated** | **No** — PostgreSQL penalized |
+| macOS Intel / Linux amd64 | `amd64` | native | native | Yes |
 
-Official images used by this project:
+Official images (pinned in `docker-compose.yml`):
 
-- **Neo4j** `neo4j:5.26-community` — publishes `linux/amd64` and `linux/arm64/v8` ([Docker Hub](https://hub.docker.com/_/neo4j)).
-- **PostGIS** `postgis/postgis:16-3.4` — publishes **`linux/amd64` only** ([docker-postgis README](https://github.com/postgis/docker-postgis)).
+- **PostGIS** `postgis/postgis:16-3.4` — **`linux/amd64` only** ([docker-postgis](https://github.com/postgis/docker-postgis))
+- **Neo4j** `neo4j:5.26-community` — `linux/amd64` and `linux/arm64/v8` ([Docker Hub](https://hub.docker.com/_/neo4j))
 
-On **Windows 10 with an AMD Ryzen 5** (x86-64), Docker Desktop runs both containers **natively** with no CPU emulation. This is the intended environment for Phase 5 performance benchmarks.
+### Platform-specific configuration
 
-**Windows 10 prerequisites:**
-
-- 64-bit Windows 10 Pro/Enterprise/Education 22H2+ (or Windows 11)
-- Virtualization enabled in BIOS (AMD-V / SVM)
-- [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/) with **WSL 2** backend
-- [Miniforge](https://github.com/conda-forge/miniforge/releases) (Windows x86_64 installer)
-- ~8 GB RAM minimum (Neo4j + PostGIS + data pipeline); 16 GB recommended
-- ~2 GB free disk for Docker images; ~1 GB for raw/processed data
+| Setting | Windows (typical) | macOS (typical) |
+|---------|-------------------|-----------------|
+| Postgres host port | `5432` in `.env` | `5432` or **`5433`** if local Postgres occupies 5432 |
+| Docker backend | Docker Desktop + WSL 2 | Docker Desktop |
+| `conda` / `docker` on PATH | Often missing in default PowerShell — use Miniforge Prompt | Usually available after `conda init` |
+| Confirm amd64 for benchmarks | `docker exec … uname -m` → `x86_64` | Apple Silicon shows `aarch64` for Neo4j, PostGIS still amd64 under emulation |
 
 ---
 
-## 2026-06-25 — Initial population
+## What was implemented (2026-06-25)
 
-### What was done
-
-1. Added Docker Compose stack (`docker-compose.yml`) for PostGIS + Neo4j (APOC + GDS plugins).
-2. Added connection config (`.env.example`, `src/db/db_config.py`).
-3. Implemented reproducible loaders:
-   - `scripts/load_postgresql.py` — applies `schema.sql`, loads all tables in FK order, validates counts
+1. Docker Compose stack (`docker-compose.yml`) — PostGIS + Neo4j with APOC and GDS plugins.
+2. Connection config — `.env.example`, `src/db/db_config.py` (gitignored `.env` locally).
+3. Loaders:
+   - `scripts/load_postgresql.py` — applies `schema.sql`, loads CSV/GPKG in FK order, validates counts
    - `scripts/load_neo4j.py` — MERGE-based import, applies `constraints.cypher`, validates counts
    - `scripts/populate_databases.py` — runs both loaders
-4. Added reference SQL/Cypher: `src/db/postgresql/load_data.sql`, `src/db/neo4j/import.cypher`.
-5. Validated row/relationship counts and Q1 smoke prerequisites on development hardware.
-6. Documented platform differences (native amd64 on Ryzen vs mixed native/emulated on Apple Silicon).
+4. Reference SQL/Cypher — `src/db/postgresql/load_data.sql`, `src/db/neo4j/import.cypher`.
 
-### Deliverables added in Phase 3
+### Database versions
 
-```
-docker-compose.yml
-.env.example
-src/db/db_config.py
-src/db/postgresql/load_data.sql
-src/db/neo4j/import.cypher
-scripts/load_postgresql.py
-scripts/load_neo4j.py
-scripts/populate_databases.py
-docs/phase3_database_population.md
-```
-
-### Database versions (pinned in `docker-compose.yml`)
-
-| Component | Version | Connection |
-|-----------|---------|------------|
-| PostgreSQL | 16.4 | Docker `postgis/postgis:16-3.4` |
-| PostGIS | 3.4 | Extension enabled via `schema.sql` |
-| Neo4j | 5.26 Community | Docker `neo4j:5.26-community` |
+| Component | Version | Notes |
+|-----------|---------|-------|
+| PostgreSQL | 16.4 | Image `postgis/postgis:16-3.4` |
+| PostGIS | 3.4 | Enabled in `schema.sql` |
+| Neo4j | 5.26.x Community | Image `neo4j:5.26-community` |
 | APOC | bundled | `NEO4J_PLUGINS` in compose |
-| GDS | 2.13.x | `RETURN gds.version()` in Neo4j Browser |
+| GDS | 2.13.x | `RETURN gds.version()` in Neo4j |
 
-Credentials: gitignored `.env` (copy from `.env.example`). Default dev password: `dm_ssd_dev`.
+Default dev password: `dm_ssd_dev` (from `.env.example`).
 
-**Port note:** `.env.example` uses `POSTGRES_PORT=5432` (standard on Windows/Ryzen). On macOS, if a local PostgreSQL already uses port 5432, set `POSTGRES_PORT=5433` in `.env` (see Issues below).
+### Validated hosts
 
-### Row / relationship counts (parity)
+| Host | OS | Docker | Populate time | Container arch |
+|------|-----|--------|---------------|----------------|
+| Development (macOS) | Apple Silicon | Desktop | ~10–15 min | Neo4j arm64, PostGIS emulated amd64 |
+| Benchmark (Windows) | Win 10 19045, Ryzen 5 | Desktop 4.78+ / WSL 2 | ~9 min | Both `x86_64` |
+
+---
+
+## Row / relationship counts (parity)
 
 | Entity | Expected | PostgreSQL | Neo4j | Notes |
 |--------|----------|------------|-------|-------|
@@ -88,7 +77,9 @@ Credentials: gitignored `.env` (copy from `.env.example`). Default dev password:
 | Logistical hubs | 5 | 5 | 5 | Secondary `LogisticalHub` label in Neo4j |
 | Routing edges (unified) | 66,533 | 66,533 | — | PostgreSQL-only denormalized layer |
 
-### Q1 smoke test prerequisites
+---
+
+## Q1 smoke test prerequisites
 
 | Check | PostgreSQL | Neo4j |
 |-------|------------|-------|
@@ -99,97 +90,13 @@ Credentials: gitignored `.env` (copy from `.env.example`). Default dev password:
 
 PostGIS geometry spot-checks (`ST_IsValid`, 100 rows each on points/lines): all passed.
 
-### Issues encountered and fixes
-
-1. **macOS PostgreSQL port conflict** — local Postgres on `5432`; Docker PostGIS mapped to host `5433`. On a clean Windows 10 machine, use `5432`.
-2. **`routing_edges.capacity` import** — float literals (`999999999.0`) failed `bigint` column; fixed with `execute_values` and explicit `int()` casting in `load_postgresql.py`.
-3. **`execute_values` batch size** — `page_size=5000` intermittently failed; reduced to `1000`.
-4. **Apple Silicon asymmetry** — Neo4j runs native `arm64`; PostGIS runs emulated `amd64`. Do **not** use macOS timings for thesis benchmarks; use Ryzen/Windows.
-
 ---
 
-## Windows 10 + Ryzen 5 — full setup (Phase 1 → Phase 3)
+## Validation commands
 
-Use this checklist after cloning the repository on your Ryzen PC. **No commit includes `data/` or `.env`** — you must generate data and config locally.
+Run after `populate_databases.py --reset`. See [`README.md`](../README.md) Step 6 for the quick checklist.
 
-### Step 0 — Prerequisites
-
-1. Install **Miniforge** (Windows x86_64): https://github.com/conda-forge/miniforge/releases  
-2. Install **Docker Desktop**: https://www.docker.com/products/docker-desktop/  
-   - Enable WSL 2 integration during setup  
-   - Ensure Docker is running (`docker version` in PowerShell)  
-3. Clone the repo:
-   ```powershell
-   git clone https://github.com/apxshay/DM_South_Sudan.git
-   cd DM_South_Sudan
-   ```
-
-### Step 1 — Python environment + Phase 1 & 2 data pipeline
-
-Open **Miniforge Prompt** or PowerShell with `conda` on PATH:
-
-```powershell
-.\scripts\setup.ps1
-conda activate dm-south-sudan
-.\scripts\bootstrap.ps1
-```
-
-This downloads ~600 MB of HDX data, builds the OSMnx road graph, runs Phase 2 merge/network integration, and writes all files under `data/processed/`.
-
-**Resume options** (if raw data already downloaded):
-
-```powershell
-.\scripts\bootstrap.ps1 -SkipDownload
-.\scripts\bootstrap.ps1 -From network
-```
-
-**Verify processed data exists** before Phase 3:
-
-```powershell
-dir data\processed\roads_hotosm\road_nodes.gpkg
-dir data\processed\network\routing_edges.csv
-```
-
-Expected: `routing_edges.csv` has 66,533 data rows (+ header).
-
-### Step 2 — Database configuration
-
-```powershell
-copy .env.example .env
-```
-
-Default `.env` targets `127.0.0.1:5432` (PostGIS) and `bolt://127.0.0.1:7687` (Neo4j). Edit only if ports conflict.
-
-### Step 3 — Start Docker databases
-
-```powershell
-docker compose up -d
-docker compose ps
-```
-
-Wait until both containers show **healthy** (Neo4j may take 1–2 minutes on first start while plugins download).
-
-**Neo4j Browser:** http://localhost:7474 (user `neo4j`, password from `.env`)
-
-### Step 4 — Populate databases
-
-```powershell
-conda activate dm-south-sudan
-python scripts\populate_databases.py --reset
-```
-
-Expected runtime on Ryzen 5 / native amd64: **~5–15 minutes** (Neo4j MERGE import is the slowest step).
-
-Load individually if needed:
-
-```powershell
-python scripts\load_postgresql.py --reset
-python scripts\load_neo4j.py --reset
-```
-
-### Step 5 — Validate
-
-**PostgreSQL** (all counts should match Expected column above):
+**PostgreSQL — ad hoc counts**
 
 ```powershell
 docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT COUNT(*) FROM health_facilities;"
@@ -197,7 +104,13 @@ docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT C
 docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT COUNT(*) FROM routing_edges;"
 ```
 
-**Neo4j:**
+**PostgreSQL — full reference script**
+
+```bash
+docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -f src/db/postgresql/load_data.sql
+```
+
+**Neo4j**
 
 ```powershell
 docker exec dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev "MATCH (n:RoadNode) RETURN count(n);"
@@ -205,57 +118,40 @@ docker exec dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev "MATCH ()-[
 docker exec dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev "RETURN gds.version();"
 ```
 
-**Confirm native amd64** (optional, on Ryzen):
+```bash
+docker exec -i dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev < src/db/neo4j/import.cypher
+```
+
+**Architecture (benchmark hosts only)**
 
 ```powershell
 docker exec dm-south-sudan-neo4j uname -m
 docker exec dm-south-sudan-postgis uname -m
 ```
 
-Both should print `x86_64`.
-
-### Step 6 — Troubleshooting (Windows)
-
-| Problem | Solution |
-|---------|----------|
-| `conda not found` | Open Miniforge Prompt or add conda to PATH; run `.\scripts\setup.ps1` |
-| `Docker daemon not running` | Start Docker Desktop; wait for whale icon to stabilize |
-| `port is already allocated` | Change `POSTGRES_PORT` or `NEO4J_BOLT_PORT` in `.env`; `docker compose up -d` |
-| `role "dm_ssd" does not exist` | Wrong Postgres instance (host port conflict). Check `.env` port matches `docker compose ps` |
-| Neo4j connection reset on first load | Wait for container healthy; retry after ~2 min |
-| `data/processed/... not found` | Run `.\scripts\bootstrap.ps1` first |
-| WSL 2 not installed | `wsl --install` in admin PowerShell; reboot |
+Expect `x86_64` on Windows/Ryzen.
 
 ---
 
-## macOS / Linux reproduction
+## Issues encountered and fixes
 
-```bash
-conda activate dm-south-sudan
-cp .env.example .env
-# macOS only: if port 5432 is taken, set POSTGRES_PORT=5433 in .env
-docker compose up -d
-python scripts/populate_databases.py --reset
-```
-
-**Validation (PostgreSQL):**
-
-```bash
-docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -f src/db/postgresql/load_data.sql
-```
-
-**Validation (Neo4j):**
-
-```bash
-docker exec -i dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev < src/db/neo4j/import.cypher
-```
+| # | Issue | Platform | Fix / workaround |
+|---|-------|----------|------------------|
+| 1 | Local Postgres on port 5432 | macOS | Set `POSTGRES_PORT=5433` in `.env` |
+| 2 | `routing_edges.capacity` float → bigint import error | All | Fixed in `load_postgresql.py` with explicit `int()` casting |
+| 3 | `execute_values` batch failures | All | Reduced `page_size` from 5000 to 1000 |
+| 4 | Unfair benchmark timings | macOS Apple Silicon | PostGIS emulated; use Windows amd64 for Phase 5 |
+| 5 | `conda` / `docker` not on PATH | Windows | Miniforge Prompt or add Scripts + Docker `resources\bin` to PATH |
+| 6 | Docker Desktop not installed | Windows | Install Docker Desktop; start before `docker compose up` |
+| 7 | `bootstrap.ps1` fails at Phase 2 (`scripts\health` not found) | Windows | Unicode em dash in step labels broke `conda run`; fixed in `bootstrap.ps1` (ASCII hyphens). Resume: `.\scripts\bootstrap.ps1 -SkipDownload -From network` |
 
 ---
 
 ## Related documents
 
+- [`README.md`](../README.md) — **main setup guide** (Windows + macOS)
+- [`database_usage_guide.md`](database_usage_guide.md) — **day-to-day use** (connect, SQL, Cypher)
 - [`AGENT_PHASE3.md`](../AGENT_PHASE3.md) — Phase 3 agent instructions
-- [`README.md`](../README.md) — project quick start (Windows section)
 - [`docs/phase2_relational_schema.md`](phase2_relational_schema.md)
 - [`docs/phase2_graph_schema.md`](phase2_graph_schema.md)
 - [`docs/phase5_benchmark_queries.md`](phase5_benchmark_queries.md)

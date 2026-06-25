@@ -2,9 +2,10 @@
 
 **Project:** South Sudan RDBMS vs Graph DB comparison  
 **Date:** 2026-06-24  
-**Status:** Complete — ready for Phase 3 import
+**Status:** Complete — loaded in Phase 3
 
-Executable DDL: [`src/db/postgresql/schema.sql`](../src/db/postgresql/schema.sql)
+Executable DDL: [`src/db/postgresql/schema.sql`](../src/db/postgresql/schema.sql)  
+**Apply and load:** [`README.md`](../README.md) Steps 4–5, or `scripts/load_postgresql.py --reset`
 
 ---
 
@@ -243,7 +244,14 @@ Phase 3 loaders (2026-06-25): `scripts/load_postgresql.py` applies `schema.sql` 
 3. Populate `geom` from `latitude`/`longitude` or source geometries during import.
 4. Join `displacement_sites.nearest_road_node_id` and `snap_distance_m` from `poi_nodes` on `site_id = poi_node_id`.
 
-**Windows 10 + Ryzen 5:** `docker compose up -d` then `python scripts\populate_databases.py --reset`. See `docs/phase3_database_population.md`.
+**Load:** follow [`README.md`](../README.md) Steps 3–5.
+
+| Windows | macOS / Linux |
+|---------|---------------|
+| `docker compose up -d` | same |
+| `python scripts\populate_databases.py --reset` | `python scripts/populate_databases.py --reset` |
+
+Validation counts: [`phase3_database_population.md`](phase3_database_population.md).
 
 ---
 
@@ -261,4 +269,5 @@ Phase 3 loaders (2026-06-25): `scripts/load_postgresql.py` applies `schema.sql` 
 - [`docs/phase2_graph_schema.md`](phase2_graph_schema.md) — Neo4j equivalent model
 - [`docs/phase5_benchmark_queries.md`](phase5_benchmark_queries.md) — canonical query templates
 - [`docs/phase2_data_modeling.md`](phase2_data_modeling.md) — Phase 2 progress log
-- [`docs/phase3_database_population.md`](phase3_database_population.md) — Phase 3 loaders and Windows setup
+- [`README.md`](../README.md) — main setup guide (Windows + macOS)
+- [`docs/phase3_database_population.md`](phase3_database_population.md) — validation counts and platform notes

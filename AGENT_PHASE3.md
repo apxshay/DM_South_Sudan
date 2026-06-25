@@ -58,7 +58,7 @@ Phase 5 will benchmark **five queries** (shortest path, multi-source routing, re
 | Benchmark queries | `docs/phase5_benchmark_queries.md` |
 | Phase 2 log | `docs/phase2_data_modeling.md` |
 
-**Regenerate all Phase 2 outputs:** `./scripts/bootstrap.sh --from network` (macOS/Linux) or run scripts listed in `docs/phase2_data_modeling.md`.
+**Regenerate all Phase 2 outputs:** `.\scripts\bootstrap.ps1 -From network` (Windows) or `./scripts/bootstrap.sh --from network` (macOS/Linux). See [`README.md`](README.md).
 
 ### Inherited decisions (critical for import)
 
@@ -246,6 +246,7 @@ Phase 3 is complete when:
 | SQL reference | `src/db/postgresql/load_data.sql` |
 | Cypher reference | `src/db/neo4j/import.cypher` |
 | Population report | `docs/phase3_database_population.md` |
+| Database usage guide | `docs/database_usage_guide.md` |
 
 **Run loaders:**
 
@@ -287,27 +288,16 @@ AGENT.md
 
 ## Environment (data pipeline — run before import if files missing)
 
-**Windows 10 + Ryzen 5 (recommended):**
+**See [`README.md`](README.md)** for the full Windows and macOS pipeline.
 
-```powershell
-conda activate dm-south-sudan
-.\scripts\bootstrap.ps1                  # full Phase 1 + 2 (downloads HDX data)
-.\scripts\bootstrap.ps1 -SkipDownload      # reuse data/raw/
-.\scripts\bootstrap.ps1 -From network      # Phase 2 network + import layers only
-copy .env.example .env
-docker compose up -d
-python scripts\populate_databases.py --reset
-```
+| Platform | One-liner after clone |
+|----------|----------------------|
+| Windows | `.\scripts\setup.ps1` → `conda activate dm-south-sudan` → `.\scripts\bootstrap.ps1` → `copy .env.example .env` → `docker compose up -d` → `python scripts\populate_databases.py --reset` |
+| macOS / Linux | `./scripts/setup_conda.sh` → `conda activate dm-south-sudan` → `./scripts/bootstrap.sh` → `cp .env.example .env` → `docker compose up -d` → `python scripts/populate_databases.py --reset` |
 
-**macOS / Linux:**
+macOS: set `POSTGRES_PORT=5433` in `.env` if port 5432 is taken.
 
-```bash
-conda activate dm-south-sudan
-./scripts/bootstrap.sh --skip-download    # full Phase 1 + 2 without re-downloading HDX
-cp .env.example .env
-# macOS: set POSTGRES_PORT=5433 in .env if port 5432 is in use
-docker compose up -d
-python scripts/populate_databases.py --reset
-```
+Resume: `-SkipDownload` / `--skip-download`, `-From network` / `--from network`.
 
-See `README.md` and `docs/phase3_database_population.md` for full Windows setup, validation queries, and platform notes.
+Platform differences and validation counts: [`docs/phase3_database_population.md`](docs/phase3_database_population.md).  
+Day-to-day querying: [`docs/database_usage_guide.md`](docs/database_usage_guide.md).

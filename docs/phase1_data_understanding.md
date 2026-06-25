@@ -4,6 +4,8 @@
 **Date:** 2025-06-23 (updated with HOT OSM roads)  
 **Status:** Complete — no transformations applied
 
+**Regenerate profiles and validation map:** [`README.md`](../README.md) Step 2 (`bootstrap` or `explore_datasets.py` + `visualize_data_validation.py`).
+
 ---
 
 ## 1. Overview

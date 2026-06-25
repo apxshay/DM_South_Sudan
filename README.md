@@ -4,85 +4,315 @@ Master's degree project comparing **PostgreSQL (RDBMS)** and **Neo4j (graph DB)*
 
 **Repository:** [github.com/apxshay/DM_South_Sudan](https://github.com/apxshay/DM_South_Sudan)
 
-## Quick start
+---
 
-Raw datasets and processed outputs are **not in git** (see `.gitignore`). After cloning, run the bootstrap scripts once to download data and generate local artifacts.
+## Start here
 
-### Windows 10 + AMD Ryzen 5 (recommended for benchmarks)
+**This README is the main guide** for setting up the project on your machine (Windows or macOS). Phase-specific analysis and design decisions live under `docs/`; agent coordination lives in `AGENT.md`.
 
-This is the **recommended platform** for Phase 3 database population and Phase 5 benchmarking. Both Docker images (`postgis/postgis`, `neo4j`) run **native `linux/amd64`** on Ryzen — no CPU emulation.
+| Document | Purpose |
+|----------|---------|
+| **README.md** (this file) | End-to-end pipeline: environment → data → databases |
+| [`docs/database_usage_guide.md`](docs/database_usage_guide.md) | **Day-to-day use:** open Docker, connect, run SQL/Cypher |
+| [`docs/phase1_data_understanding.md`](docs/phase1_data_understanding.md) | Phase 1 dataset analysis report |
+| [`docs/road_network_topology.md`](docs/road_network_topology.md) | OSMnx road graph methodology |
+| [`docs/phase2_data_modeling.md`](docs/phase2_data_modeling.md) | Phase 2 progress log and decisions |
+| [`docs/phase2_relational_schema.md`](docs/phase2_relational_schema.md) | PostgreSQL/PostGIS schema |
+| [`docs/phase2_graph_schema.md`](docs/phase2_graph_schema.md) | Neo4j schema |
+| [`docs/phase3_database_population.md`](docs/phase3_database_population.md) | Phase 3 validation counts, platform notes, issues log |
+| [`docs/phase5_benchmark_queries.md`](docs/phase5_benchmark_queries.md) | Q1–Q5 benchmark templates (Phase 5) |
+| [`AGENT.md`](AGENT.md) | Orchestrator status and project overview |
 
-**Prerequisites:** [Miniforge](https://github.com/conda-forge/miniforge/releases) (x86_64), [Docker Desktop](https://www.docker.com/products/docker-desktop/) with WSL 2, virtualization enabled in BIOS.
+Raw and processed data are **not in git** (see `.gitignore`). After cloning, follow the pipeline below once per machine.
+
+---
+
+## Platform overview
+
+Both platforms run the **same Python scripts and Docker images**. Differences matter for **setup commands**, **PATH**, **Postgres port**, and **benchmark fairness**.
+
+| Topic | Windows 10/11 (x86-64 / Ryzen) | macOS Apple Silicon (M1/M2/M3) | macOS Intel / Linux amd64 |
+|-------|--------------------------------|--------------------------------|---------------------------|
+| **Python env** | Miniforge + `.\scripts\setup.ps1` | Miniforge + `./scripts/setup_conda.sh` | Same as Apple Silicon |
+| **Data pipeline** | `.\scripts\bootstrap.ps1` | `./scripts/bootstrap.sh` | Same |
+| **Docker backend** | Docker Desktop + **WSL 2** | Docker Desktop | Docker Desktop or Engine |
+| **PostGIS container** | Native `linux/amd64` | **Emulated** `linux/amd64` | Native `linux/amd64` |
+| **Neo4j container** | Native `linux/amd64` | Native `linux/arm64` | Native `linux/amd64` |
+| **Default Postgres port** | `5432` (usually free) | Often **`5433`** if local Postgres uses 5432 | `5432` or `5433` |
+| **Phase 1–3 development** | ✅ Recommended | ✅ Works | ✅ Works |
+| **Phase 5 fair benchmarks** | ✅ **Recommended** | ❌ PostGIS penalized | ✅ OK |
+
+**Decision:** Use **Windows 10 + AMD Ryzen 5** (or any native amd64 host) for Phase 5 timing experiments. Use macOS for development, schema work, and query authoring.
+
+---
+
+## Prerequisites
+
+### All platforms
+
+- [Miniforge](https://github.com/conda-forge/miniforge/releases) with `conda-forge` (GeoPandas/GDAL, osmium-tool)
+- ~8 GB RAM (16 GB recommended with Docker); ~2 GB disk for images + ~1 GB for data
+- Network for HDX download (~600 MB) and Geofabrik OSM extract (~130 MB, cached by topology script)
+
+### Windows (Phase 3 + benchmarks)
+
+- 64-bit Windows 10/11, virtualization enabled (AMD-V / Intel VT-x)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) with **WSL 2** backend
+- Open **Miniforge Prompt**, or add to PATH:
+  - `%USERPROFILE%\miniforge3\Scripts`
+  - `C:\Program Files\Docker\Docker\resources\bin`
+
+### macOS / Linux (Phase 3)
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (macOS) or Docker Engine (Linux)
+- `chmod +x scripts/*.sh` once after clone
+- If port **5432** is taken: set `POSTGRES_PORT=5433` in `.env` after copying from `.env.example`
+
+### macOS venv fallback (limited)
+
+`./scripts/setup.sh` uses pip-only GeoPandas and may lack `osmium-tool`. Road topology can fail. Prefer `./scripts/setup_conda.sh`.
+
+---
+
+## Full pipeline (Phase 1 → Phase 3)
+
+### Step 0 — Clone
 
 ```powershell
 git clone https://github.com/apxshay/DM_South_Sudan.git
 cd DM_South_Sudan
+```
 
-.\scripts\setup.ps1
-conda activate dm-south-sudan
-.\scripts\bootstrap.ps1
+```bash
+git clone https://github.com/apxshay/DM_South_Sudan.git
+cd DM_South_Sudan
+chmod +x scripts/*.sh
+```
 
-copy .env.example .env
+### Step 1 — Python environment
+
+| Windows | macOS / Linux |
+|---------|---------------|
+| `.\scripts\setup.ps1` | `./scripts/setup_conda.sh` |
+| `conda activate dm-south-sudan` | `conda activate dm-south-sudan` |
+
+Creates/updates conda env `dm-south-sudan` from `environment.yml` and project directories.
+
+### Step 2 — Data pipeline (Phase 1 + Phase 2)
+
+Downloads HDX data, builds the OSMnx road graph, merges health facilities, integrates POI connectors, and writes `data/processed/`.
+
+| Windows | macOS / Linux |
+|---------|---------------|
+| `.\scripts\bootstrap.ps1` | `./scripts/bootstrap.sh` |
+
+**Verify before Phase 3:**
+
+```powershell
+dir data\processed\roads_hotosm\road_nodes.gpkg
+dir data\processed\network\routing_edges.csv   # expect 66,533 data rows + header
+```
+
+```bash
+ls data/processed/roads_hotosm/road_nodes.gpkg
+wc -l data/processed/network/routing_edges.csv   # expect 66534 lines
+```
+
+**Validation maps** (open in a browser under `output/`):
+
+| Map | Script |
+|-----|--------|
+| Phase 1 raw layers | `visualize_data_validation.py` |
+| Road topology | `visualize_road_topology.py` |
+| POIs + connectors | `visualize_augmented_network.py` |
+
+### Step 3 — Database configuration
+
+| Windows | macOS / Linux |
+|---------|---------------|
+| `copy .env.example .env` | `cp .env.example .env` |
+
+Defaults: PostGIS `127.0.0.1:5432`, Neo4j `bolt://127.0.0.1:7687`, password `dm_ssd_dev`.
+
+**macOS only:** if `5432` is in use, edit `.env` → `POSTGRES_PORT=5433`, then `docker compose up -d` again.
+
+### Step 4 — Start databases
+
+Ensure Docker Desktop is running, then:
+
+```powershell
 docker compose up -d
+docker compose ps    # wait until both containers are healthy
+```
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+Neo4j Browser: http://localhost:7474 (user `neo4j`, password from `.env`).
+
+Images: `postgis/postgis:16-3.4`, `neo4j:5.26-community` (APOC + GDS).
+
+### Step 5 — Populate databases
+
+```powershell
+conda activate dm-south-sudan
 python scripts\populate_databases.py --reset
 ```
 
-Full Phase 3 checklist, validation queries, and troubleshooting: **`docs/phase3_database_population.md`** (Windows section).
+```bash
+conda activate dm-south-sudan
+python scripts/populate_databases.py --reset
+```
 
-### Windows 10 + Miniforge — data pipeline only
+Expected runtime on native amd64: **~5–15 minutes** (Neo4j MERGE is the slowest step).
+
+Load individually if needed:
+
+| Windows | macOS / Linux |
+|---------|---------------|
+| `python scripts\load_postgresql.py --reset` | `python scripts/load_postgresql.py --reset` |
+| `python scripts\load_neo4j.py --reset` | `python scripts/load_neo4j.py --reset` |
+
+### Step 6 — Validate
+
+Quick count checks (password from `.env`, default `dm_ssd_dev`):
+
+**PostgreSQL**
 
 ```powershell
-git clone https://github.com/apxshay/DM_South_Sudan.git
-cd DM_South_Sudan
-
-.\scripts\setup.ps1
-conda activate dm-south-sudan
-.\scripts\bootstrap.ps1
+docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT COUNT(*) FROM health_facilities;"
+docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT COUNT(*) FROM road_edges;"
+docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT COUNT(*) FROM routing_edges;"
 ```
 
-### macOS / Linux + Miniforge (recommended)
+**Neo4j**
 
-```bash
-git clone https://github.com/apxshay/DM_South_Sudan.git
-cd DM_South_Sudan
-
-chmod +x scripts/*.sh
-./scripts/setup_conda.sh
-conda activate dm-south-sudan
-./scripts/bootstrap.sh
+```powershell
+docker exec dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev "MATCH (n:RoadNode) RETURN count(n);"
+docker exec dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev "MATCH ()-[r:CONNECTOR_REVERSE]->() RETURN count(r);"
+docker exec dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev "RETURN gds.version();"
 ```
 
-Install Miniforge if needed: [conda-forge/miniforge releases](https://github.com/conda-forge/miniforge/releases) (choose macOS Apple Silicon, Intel, or Linux).
+**Benchmark host (amd64):** confirm native architecture inside containers:
 
-### macOS / Linux (venv fallback)
-
-```bash
-./scripts/setup.sh
-./scripts/bootstrap.sh
+```powershell
+docker exec dm-south-sudan-neo4j uname -m
+docker exec dm-south-sudan-postgis uname -m
 ```
 
-The venv path uses pip-only GeoPandas and **may not include `osmium-tool`**, which the road topology script needs. Prefer `./scripts/setup_conda.sh` for the full pipeline.
+Both should print `x86_64` on Windows/Ryzen.
 
-### Resume where you left off
+Full expected counts and Q1 smoke prerequisites: [`docs/phase3_database_population.md`](docs/phase3_database_population.md).
 
-All bootstrap scripts are safe to re-run. Generated files live under `data/raw/`, `data/processed/`, and `output/` (local only).
+**Using the databases day-to-day** (connect, run queries, GUI tools): [`docs/database_usage_guide.md`](docs/database_usage_guide.md).
 
-| Situation | Command |
-|-----------|---------|
-| Fresh clone, full rebuild | `./scripts/bootstrap.sh` (macOS/Linux) or `.\scripts\bootstrap.ps1` (Windows) |
-| Raw data already downloaded | `./scripts/bootstrap.sh --skip-download` |
-| Re-run Phase 2 merge only | `./scripts/bootstrap.sh --from merge` |
-| Re-run Phase 2 network integration | `./scripts/bootstrap.sh --from network` or `.\scripts\bootstrap.ps1 -From network` |
-| Phase 3 — populate databases | `docker compose up -d` then `python scripts/populate_databases.py --reset` |
-| Phase 3 — PostgreSQL only | `python scripts/load_postgresql.py --reset` |
-| Phase 3 — Neo4j only | `python scripts/load_neo4j.py --reset` |
-| Single script | `python scripts/merge_health_facilities.py` or `python scripts/integrate_network.py` (with conda env active) |
+---
 
-### Conda on any OS (manual steps)
+## Resume where you left off
+
+Bootstrap scripts are idempotent. Generated files live under `data/raw/`, `data/processed/`, and `output/` (local only).
+
+| Situation | Windows | macOS / Linux |
+|-----------|---------|---------------|
+| Fresh clone, full rebuild | `.\scripts\bootstrap.ps1` | `./scripts/bootstrap.sh` |
+| Raw data already downloaded | `.\scripts\bootstrap.ps1 -SkipDownload` | `./scripts/bootstrap.sh --skip-download` |
+| Re-run Phase 2 merge only | `.\scripts\bootstrap.ps1 -From merge` | `./scripts/bootstrap.sh --from merge` |
+| Re-run Phase 2 network + import layers | `.\scripts\bootstrap.ps1 -From network` | `./scripts/bootstrap.sh --from network` |
+| Phase 3 only (processed data exists) | `docker compose up -d` then `python scripts\populate_databases.py --reset` | same with forward slashes |
+| Single script | `python scripts\merge_health_facilities.py` (env active) | `python scripts/merge_health_facilities.py` |
+
+**Data pipeline only (skip Docker):** run Step 1 + Step 2 above; skip Steps 3–5.
+
+---
+
+## Troubleshooting
+
+| Problem | Windows | macOS / Linux |
+|---------|---------|---------------|
+| `conda not found` | Use Miniforge Prompt or add `miniforge3\Scripts` to PATH | `conda init` in your shell; reopen terminal |
+| `docker not found` | Install/start Docker Desktop; add `Docker\resources\bin` to PATH | Start Docker Desktop |
+| Docker daemon not running | Launch Docker Desktop; wait for stable tray icon | Same |
+| Port already allocated | Change `POSTGRES_PORT` or `NEO4J_BOLT_PORT` in `.env` | Same; macOS often needs `POSTGRES_PORT=5433` |
+| `role "dm_ssd" does not exist` | Wrong Postgres instance — check `.env` port vs `docker compose ps` | Same |
+| `data/processed/... not found` | Run bootstrap (Step 2) | Same |
+| Neo4j reset on first load | Wait for `healthy`; retry after ~2 min | Same |
+| WSL 2 missing (Windows) | Admin PowerShell: `wsl --install`; reboot | — |
+
+More detail: [`docs/phase3_database_population.md`](docs/phase3_database_population.md) (issues log and validation reference).
+
+---
+
+## Project status
+
+| Phase | Status | Report |
+|-------|--------|--------|
+| Phase 1 — Data understanding | Complete | [`docs/phase1_data_understanding.md`](docs/phase1_data_understanding.md) |
+| Road network topology | Complete (24,779 nodes, 62,345 edges) | [`docs/road_network_topology.md`](docs/road_network_topology.md) |
+| Phase 2 — Data modeling | Complete | [`docs/phase2_data_modeling.md`](docs/phase2_data_modeling.md) |
+| Phase 3 — Database population | Complete | [`docs/phase3_database_population.md`](docs/phase3_database_population.md) |
+| Phase 5 — Benchmarking | **Next** | [`docs/phase5_benchmark_queries.md`](docs/phase5_benchmark_queries.md) |
+
+---
+
+## Key design decisions
+
+| Topic | Choice |
+|-------|--------|
+| Primary road network | OSMnx graph in `data/processed/roads_hotosm/` (not raw HDX line shapefiles) |
+| Highway filter | `primary`, `secondary`, `tertiary`, `unclassified` |
+| Displacement sites | IOM DTM **Round 11** (77 sites, full GPS) |
+| IDMC national IDP CSV | Context only — not in spatial graph |
+| POI–road linking | Snap to nearest intersection; directed connector edge |
+| Graph direction | Preserve directed arcs and `oneway`; import `CONNECTOR_REVERSE` for Q5 |
+| Facilities without coordinates | All 2,251 in PostgreSQL; 2,017 in Neo4j spatial graph |
+| Benchmark host | Windows amd64 — both DB containers native `x86_64` |
+
+---
+
+## Datasets
+
+| Domain | Source | Local path |
+|--------|--------|------------|
+| Roads (humanitarian) | [HDX — Road Network](https://data.humdata.org/dataset/south-sudan-road-network_hdx) | `data/raw/roads/` |
+| Roads (HOT OSM) | [HDX — Roads of South Sudan](https://data.humdata.org/dataset/hotosm_ssd_roads) | `data/raw/roads_hotosm/` |
+| Roads (Geofabrik OSM) | [Geofabrik — South Sudan](https://download.geofabrik.de/africa/south-sudan.html) | `data/raw/roads_hotosm/original/` |
+| Health facilities | [HDX — Health Facilities](https://data.humdata.org/dataset/south-sudan-health-facilities) | `data/raw/health_facilities/` |
+| IDP displacements | [HDX — IDMC IDPs](https://data.humdata.org/dataset/idmc-idp-data-ssd) | `data/raw/idp/` |
+| Displacement sites | [HDX — IOM DTM](https://data.humdata.org/dataset/south-sudan-displacement-data-site-assessment-iom-dtm) | `data/raw/displacement_sites/` |
+
+See [`data/raw/README.md`](data/raw/README.md) and [`data/processed/README.md`](data/processed/README.md).
+
+---
+
+## Project structure
+
+```
+├── README.md                 # Main setup guide (this file)
+├── AGENT.md / AGENT_PHASE*.md
+├── docker-compose.yml        # PostGIS + Neo4j
+├── .env.example              # Copy to .env (gitignored)
+├── environment.yml           # Conda environment (all platforms)
+├── data/raw/                 # HDX + Geofabrik (not in git)
+├── data/processed/           # Graph, facilities, network (not in git)
+├── docs/                     # Phase reports, schemas, database usage guide
+│   ├── database_usage_guide.md
+│   ├── phase1_data_understanding.md
+│   ├── phase3_database_population.md
+│   └── phase5_benchmark_queries.md
+├── output/                   # HTML validation maps (not in git)
+├── scripts/                  # setup, bootstrap, ETL, loaders
+└── src/db/                   # schema.sql, constraints.cypher, db_config.py
+```
+
+---
+
+## Manual pipeline (optional)
+
+If you prefer not to use bootstrap scripts, with `conda activate dm-south-sudan`:
 
 ```bash
-conda env create -f environment.yml   # or: conda env update -f environment.yml --prune
-conda activate dm-south-sudan
 python scripts/create_dirs.py
 python scripts/download_datasets.py
 python scripts/explore_datasets.py
@@ -98,119 +328,4 @@ python scripts/build_reference_data.py
 python scripts/prepare_db_import_layers.py
 ```
 
-### Validation maps
-
-| Map | Command | Output |
-|-----|---------|--------|
-| Phase 1 raw data | `visualize_data_validation.py` | `output/south_sudan_data_validation.html` |
-| Road topology graph | `visualize_road_topology.py` | `output/south_sudan_road_topology_validation.html` |
-| Augmented network (POIs + connectors) | `visualize_augmented_network.py` | `output/south_sudan_augmented_network_validation.html` |
-
-Open any HTML file in a browser. The augmented network map shows road graph layers plus POI nodes and connector edges (including a review layer for snaps > 5 km).
-
-## Requirements
-
-- **Windows / macOS / Linux:** Miniforge or Conda with `conda-forge` (GeoPandas/GDAL, osmium-tool) — **recommended**
-- **Phase 3 / Phase 5:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS) or Docker Engine (Linux)
-- **Benchmarking:** Windows 10 + AMD Ryzen 5 (or any native `amd64` host) so PostgreSQL and Neo4j run without emulation — see `docs/phase3_database_population.md`
-- **macOS/Linux alternative:** Python 3.11+ venv (partial support; road topology may fail without osmium)
-- Network access for HDX dataset download (~600 MB total; HOT OSM roads ~50 MB compressed)
-- Network access for Geofabrik OSM extract (~130 MB; road topology script)
-- No `curl` or `unzip` required — downloads use pure Python (`requests` + `zipfile`) or OSMnx/Geofabrik
-
-## Project structure
-
-```
-├── AGENT.md / AGENT_PHASE2.md / AGENT_PHASE3.md
-├── docker-compose.yml       # PostGIS + Neo4j (Phase 3)
-├── .env.example             # DB connection template (copy to .env)
-├── environment.yml          # Conda environment (all platforms)
-├── requirements.txt         # pip fallback for venv setups
-├── data/
-│   ├── raw/                 # HDX datasets + Geofabrik OSM extract (not in git)
-│   ├── processed/           # Road graph, facilities, network, admin (not in git)
-│   └── interim/             # OSMnx build intermediates (not in git)
-├── docs/
-│   ├── phase1_data_understanding.md
-│   ├── phase1_profile.json
-│   ├── road_network_topology.md
-│   ├── phase2_data_modeling.md
-│   ├── phase2_relational_schema.md
-│   ├── phase2_graph_schema.md
-│   ├── phase3_database_population.md
-│   └── phase5_benchmark_queries.md
-├── src/db/
-│   ├── db_config.py
-│   ├── postgresql/schema.sql
-│   ├── postgresql/load_data.sql
-│   ├── neo4j/constraints.cypher
-│   └── neo4j/import.cypher
-├── output/                  # Generated HTML maps (not in git)
-└── scripts/
-    ├── setup.ps1 / setup_conda.sh / setup.sh
-    ├── bootstrap.ps1 / bootstrap.sh
-    ├── populate_databases.py
-    ├── load_postgresql.py
-    ├── load_neo4j.py
-    ├── resolve_python.sh
-    ├── download_datasets.py
-    ├── explore_datasets.py
-    ├── visualize_data_validation.py
-    ├── build_road_network_topology.py
-    ├── visualize_road_topology.py
-    ├── merge_health_facilities.py
-    ├── integrate_network.py
-    ├── visualize_augmented_network.py
-    ├── build_admin_dimensions.py
-    ├── build_displacement_sites.py
-    ├── build_reference_data.py
-    └── prepare_db_import_layers.py
-```
-
-## Datasets
-
-| Domain | Source | Local path |
-|--------|-----------|------------|
-| Roads (humanitarian) | [South Sudan: Road Network](https://data.humdata.org/dataset/south-sudan-road-network_hdx) | `data/raw/roads/` |
-| Roads (HOT OSM) | [Roads of South Sudan](https://data.humdata.org/dataset/hotosm_ssd_roads) | `data/raw/roads_hotosm/` |
-| Roads (Geofabrik OSM) | [Geofabrik — South Sudan](https://download.geofabrik.de/africa/south-sudan.html) | `data/raw/roads_hotosm/original/` |
-| Health facilities | [South Sudan - Health Facilities](https://data.humdata.org/dataset/south-sudan-health-facilities) | `data/raw/health_facilities/` |
-| IDP displacements | [South Sudan - IDPs (IDMC)](https://data.humdata.org/dataset/idmc-idp-data-ssd) | `data/raw/idp/` |
-| Displacement sites | [IOM DTM Site Assessment](https://data.humdata.org/dataset/south-sudan-displacement-data-site-assessment-iom-dtm) | `data/raw/displacement_sites/` |
-
-See `data/raw/README.md` for raw data details. Processed outputs: `data/processed/README.md`.
-
-HOT OSM shapefile roads are filtered to `primary`, `secondary`, `tertiary`, and `unclassified` highway types. The OSMnx road graph uses the same highway filter on live Geofabrik OSM data.
-
-## Current phase
-
-**Phase 1 — Data Understanding:** complete. See `docs/phase1_data_understanding.md`.
-
-**Road network topology:** complete (2026-06-24). OSMnx graph with 24,779 nodes and 62,345 edges. See `docs/road_network_topology.md`.
-
-**Phase 2 — Data Modeling:** complete (2026-06-24).
-
-| Step | Status | Script / doc |
-|------|--------|----------------|
-| Health facility reconciliation | Complete | `merge_health_facilities.py` |
-| Network integration (POI → road graph) | Complete | `integrate_network.py` |
-| Admin dimensions + reference data | Complete | `build_admin_dimensions.py`, `build_reference_data.py` |
-| DB import layers | Complete | `prepare_db_import_layers.py` |
-| Relational + graph schemas | Complete | `docs/phase2_relational_schema.md`, `docs/phase2_graph_schema.md` |
-| Benchmark queries (Q1–Q5) | Complete | `docs/phase5_benchmark_queries.md` |
-
-Progress log: `docs/phase2_data_modeling.md`. Agent instructions: `AGENT_PHASE2.md` (complete).
-
-**Phase 3 — Database Population:** complete (2026-06-25). Loaders, Docker Compose, and validation documented in `docs/phase3_database_population.md`.
-
-| Step | Status | Script / doc |
-|------|--------|----------------|
-| Docker Compose (PostGIS + Neo4j + GDS) | Complete | `docker-compose.yml` |
-| PostgreSQL loader | Complete | `scripts/load_postgresql.py` |
-| Neo4j loader | Complete | `scripts/load_neo4j.py` |
-| Orchestrator | Complete | `scripts/populate_databases.py` |
-| Population report | Complete | `docs/phase3_database_population.md` |
-
-**Run on Windows 10 + Ryzen 5:** see README quick start and `docs/phase3_database_population.md` (Windows section).
-
-**Phase 5 — Benchmarking:** next. Run Q1–Q5 from `docs/phase5_benchmark_queries.md` on the Ryzen machine for fair `amd64` timings.
+Same script names on Windows (`python scripts\...`). GeoPandas/GDAL must come from **conda-forge** (`environment.yml`), not pip alone.

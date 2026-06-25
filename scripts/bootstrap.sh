@@ -120,16 +120,16 @@ if should_run topology; then
 fi
 
 if should_run merge; then
-  run_step "Phase 2 — health facility merge" "$ROOT/scripts/merge_health_facilities.py"
+  run_step "Phase 2 - health facility merge" "$ROOT/scripts/merge_health_facilities.py"
 fi
 
 if should_run network; then
-  run_step "Phase 2 — network integration" "$ROOT/scripts/integrate_network.py"
+  run_step "Phase 2 - network integration" "$ROOT/scripts/integrate_network.py"
   run_step "Augmented network validation map" "$ROOT/scripts/visualize_augmented_network.py"
-  run_step "Phase 2 — admin dimensions" "$ROOT/scripts/build_admin_dimensions.py"
-  run_step "Phase 2 — displacement sites" "$ROOT/scripts/build_displacement_sites.py"
-  run_step "Phase 2 — reference data" "$ROOT/scripts/build_reference_data.py"
-  run_step "Phase 2 — DB import layers" "$ROOT/scripts/prepare_db_import_layers.py"
+  run_step "Phase 2 - admin dimensions" "$ROOT/scripts/build_admin_dimensions.py"
+  run_step "Phase 2 - displacement sites" "$ROOT/scripts/build_displacement_sites.py"
+  run_step "Phase 2 - reference data" "$ROOT/scripts/build_reference_data.py"
+  run_step "Phase 2 - DB import layers" "$ROOT/scripts/prepare_db_import_layers.py"
 fi
 
 cat <<EOF
@@ -145,4 +145,9 @@ Open in a browser:
   output/south_sudan_data_validation.html
   output/south_sudan_road_topology_validation.html
   output/south_sudan_augmented_network_validation.html
+
+Next: Phase 3 — see README.md Steps 3-5
+  cp .env.example .env   # Windows: copy .env.example .env
+  docker compose up -d
+  python scripts/populate_databases.py --reset
 EOF

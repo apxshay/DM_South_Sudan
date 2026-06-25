@@ -5,18 +5,23 @@
 **Status:** Canonical query templates for Phase 5 benchmarking
 
 Schemas: [`phase2_relational_schema.md`](phase2_relational_schema.md), [`phase2_graph_schema.md`](phase2_graph_schema.md)  
-**Prerequisite:** Phase 3 complete — databases loaded per [`phase3_database_population.md`](phase3_database_population.md)
+**Prerequisite:** Phase 3 complete — databases loaded per [`README.md`](../README.md) and validated in [`phase3_database_population.md`](phase3_database_population.md)
 
 ---
 
 ## Benchmark platform
 
-Run Phase 5 timing experiments on **Windows 10 + AMD Ryzen 5** (or any host where both Docker images run **native `linux/amd64`**):
+| Platform | Fair RDBMS vs graph timings? | Notes |
+|----------|------------------------------|-------|
+| **Windows 10/11 + Ryzen (amd64)** | **Yes — use this** | Both Docker images native `linux/amd64` |
+| macOS Apple Silicon | **No** | PostGIS emulated amd64; Neo4j native arm64 |
+| macOS Intel / Linux amd64 | Yes | Both native amd64 |
 
-- `postgis/postgis:16-3.4` — amd64 only
-- `neo4j:5.26-community` — amd64 + arm64
+Run Phase 5 on a host where `docker exec dm-south-sudan-postgis uname -m` and `docker exec dm-south-sudan-neo4j uname -m` both return `x86_64`.
 
-Do **not** publish comparative timings from macOS Apple Silicon unless both databases are on equal footing (PostGIS is emulated there). Document CPU model, OS, Docker version, and image architectures in the thesis methods section.
+Document in the thesis: CPU model, OS, Docker version, image tags, and container architectures.
+
+Do **not** publish comparative timings from macOS Apple Silicon unless both databases run on equal footing.
 
 ---
 
@@ -294,7 +299,7 @@ Max-flow is **not** native SQL. Implement via application layer (e.g. NetworkX `
 
 | Step | Action |
 |------|--------|
-| 0 | Complete Phase 3 on Ryzen/Windows — see `phase3_database_population.md` |
+| 0 | Complete Phase 3 — [`README.md`](../README.md) Steps 3–5 on **Windows amd64** for fair timings |
 | 1 | Confirm both containers native `x86_64`: `docker exec ... uname -m` |
 | 2 | Load PostgreSQL schema + data (`scripts/load_postgresql.py` or already loaded) |
 | 3 | Load Neo4j nodes/relationships + `constraints.cypher` |
@@ -310,6 +315,7 @@ Max-flow is **not** native SQL. Implement via application layer (e.g. NetworkX `
 - [`phase2_relational_schema.md`](phase2_relational_schema.md)
 - [`phase2_graph_schema.md`](phase2_graph_schema.md)
 - [`phase2_data_modeling.md`](phase2_data_modeling.md)
+- [`README.md`](../README.md)
 - [`phase3_database_population.md`](phase3_database_population.md)
 - [`road_network_topology.md`](road_network_topology.md)
 - [`AGENT_PHASE3.md`](../AGENT_PHASE3.md)

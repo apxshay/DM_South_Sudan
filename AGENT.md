@@ -150,7 +150,7 @@ Regenerate Phase 2: `./scripts/bootstrap.sh --from network` or run scripts liste
 
 **Phase 3 — Database Population: COMPLETE** (2026-06-25)
 
-PostgreSQL/PostGIS and Neo4j loaders implemented (`scripts/load_postgresql.py`, `scripts/load_neo4j.py`, `scripts/populate_databases.py`), Docker Compose stack added, counts and Q1 smoke prerequisites validated. Report: `docs/phase3_database_population.md`.
+PostgreSQL/PostGIS and Neo4j loaders implemented (`scripts/load_postgresql.py`, `scripts/load_neo4j.py`, `scripts/populate_databases.py`), Docker Compose stack added, counts and Q1 smoke prerequisites validated on Windows amd64 and macOS. Reports: `docs/phase3_database_population.md`, `docs/database_usage_guide.md`.
 
 **Recommended benchmark host:** Windows 10 + AMD Ryzen 5 — both `postgis/postgis` and `neo4j` Docker images run native `linux/amd64`. macOS Apple Silicon runs Neo4j natively but PostGIS under x86 emulation (not fair for timing comparisons).
 
@@ -199,7 +199,8 @@ data_management/
 │   ├── phase2_data_modeling.md       # Phase 2 progress log
 │   ├── phase2_relational_schema.md   # PostgreSQL/PostGIS schema
 │   ├── phase2_graph_schema.md        # Neo4j schema
-│   ├── phase3_database_population.md # Phase 3 population log + Windows setup
+│   ├── phase3_database_population.md # Phase 3 validation + platform notes
+│   ├── database_usage_guide.md       # Day-to-day DB usage (SQL, Cypher, GUI)
 │   ├── phase5_benchmark_queries.md   # Q1–Q5 benchmark templates
 ├── output/                           # Generated HTML maps (excluded from git)
 ├── scripts/
@@ -301,72 +302,18 @@ Full topology methodology: `docs/road_network_topology.md`
 
 ### Bootstrap on a new machine
 
-**Windows 10 + AMD Ryzen 5 (recommended — data pipeline + Phase 3 databases):**
+**See [`README.md`](README.md)** for the full Windows and macOS pipeline (environment → data → Docker → populate).
 
-```powershell
-.\scripts\setup.ps1
-conda activate dm-south-sudan
-.\scripts\bootstrap.ps1
-copy .env.example .env
-docker compose up -d
-python scripts\populate_databases.py --reset
-```
+Quick reference:
 
-Requires Docker Desktop with WSL 2. See `docs/phase3_database_population.md` for validation and troubleshooting.
+| Platform | Setup | Data | Phase 3 |
+|----------|-------|------|---------|
+| Windows | `.\scripts\setup.ps1` | `.\scripts\bootstrap.ps1` | `copy .env.example .env` → `docker compose up -d` → `python scripts\populate_databases.py --reset` |
+| macOS / Linux | `./scripts/setup_conda.sh` | `./scripts/bootstrap.sh` | `cp .env.example .env` → `docker compose up -d` → `python scripts/populate_databases.py --reset` |
 
-**Windows 10 — data pipeline only** (skip Docker if not ready for Phase 3):
+Resume flags: `-SkipDownload` / `--skip-download`, `-From network` / `--from network` (see README resume table).
 
-```powershell
-.\scripts\setup.ps1
-conda activate dm-south-sudan
-.\scripts\bootstrap.ps1
-```
-
-**macOS / Linux + Miniforge (recommended):**
-
-```bash
-chmod +x scripts/*.sh
-./scripts/setup_conda.sh
-conda activate dm-south-sudan
-./scripts/bootstrap.sh
-```
-
-**macOS / Linux (venv fallback):**
-
-```bash
-./scripts/setup.sh
-./scripts/bootstrap.sh
-```
-
-**Resume after clone/pull** (raw/processed data are gitignored):
-
-```bash
-./scripts/bootstrap.sh --skip-download          # reuse data/raw/
-./scripts/bootstrap.sh --from merge             # Phase 2 merge only
-./scripts/bootstrap.sh --from network             # Phase 2 network + schemas (full Phase 2)
-```
-
-**Conda on any OS (manual — full pipeline through Phase 2):**
-
-```bash
-conda env create -f environment.yml
-conda activate dm-south-sudan
-python scripts/create_dirs.py
-python scripts/download_datasets.py
-python scripts/explore_datasets.py
-python scripts/visualize_data_validation.py
-python scripts/build_road_network_topology.py
-python scripts/visualize_road_topology.py
-python scripts/merge_health_facilities.py
-python scripts/integrate_network.py
-python scripts/visualize_augmented_network.py
-python scripts/build_admin_dimensions.py
-python scripts/build_displacement_sites.py
-python scripts/build_reference_data.py
-python scripts/prepare_db_import_layers.py
-```
-
-GeoPandas/GDAL should be installed via **conda-forge** (`environment.yml`), not pip alone. Road topology requires **osmium-tool** (conda-forge) and **osmnx** (pip).
+GeoPandas/GDAL must come from **conda-forge** (`environment.yml`). Road topology requires **osmium-tool** (conda-forge) and **osmnx** (pip).
 
 ---
 
@@ -381,7 +328,9 @@ GeoPandas/GDAL should be installed via **conda-forge** (`environment.yml`), not 
 **Phase 3 complete:** loaders in `scripts/`, Docker in `docker-compose.yml`, report in `docs/phase3_database_population.md`.
 
 Reference documents:
-- `docs/phase3_database_population.md` — population + Windows setup
+- [`README.md`](README.md) — **main setup guide** (Windows + macOS pipeline)
+- [`docs/database_usage_guide.md`](docs/database_usage_guide.md) — connect and query both databases
+- `docs/phase3_database_population.md` — validation counts and platform notes
 - `docs/phase2_relational_schema.md`
 - `docs/phase2_graph_schema.md`
 - `docs/phase5_benchmark_queries.md`

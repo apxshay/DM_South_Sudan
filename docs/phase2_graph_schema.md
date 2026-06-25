@@ -2,9 +2,12 @@
 
 **Project:** South Sudan RDBMS vs Graph DB comparison  
 **Date:** 2026-06-24  
-**Status:** Complete — ready for Phase 3 import
+**Status:** Complete — loaded in Phase 3
 
-Constraints/indexes: [`src/db/neo4j/constraints.cypher`](../src/db/neo4j/constraints.cypher)
+Constraints/indexes: [`src/db/neo4j/constraints.cypher`](../src/db/neo4j/constraints.cypher)  
+**Apply and load:** [`README.md`](../README.md) Steps 4–5, or `scripts/load_neo4j.py --reset`
+
+**Platform note:** GDS plugin required for Q5; bundled in project `docker-compose.yml`. Fair benchmark timings require native amd64 — see [`phase3_database_population.md`](phase3_database_population.md).
 
 ---
 
@@ -197,7 +200,7 @@ total_m = camp.snap_distance_m
 | `CONNECTOR_REVERSE` | `routing_edges.csv` WHERE `edge_type=connector_reverse` |
 | `LogisticalHub` | `logistical_hubs.csv` (label on matching `HealthFacility`) |
 
-**Loader:** `scripts/load_neo4j.py` (MERGE-based, idempotent). Orchestrator: `scripts/populate_databases.py`. Report: `docs/phase3_database_population.md`.
+**Loader:** `scripts/load_neo4j.py` (MERGE-based, idempotent). Orchestrator: `scripts/populate_databases.py`. Setup: [`README.md`](../README.md); validation: [`phase3_database_population.md`](phase3_database_population.md).
 
 ---
 
@@ -222,6 +225,7 @@ Same as relational schema — long snaps, unknown facility types, no airport hub
 ## 10. Related documents
 
 - [`docs/phase2_relational_schema.md`](phase2_relational_schema.md)
+- [`README.md`](../README.md)
 - [`docs/phase3_database_population.md`](phase3_database_population.md)
 - [`docs/phase5_benchmark_queries.md`](phase5_benchmark_queries.md)
 - [`docs/road_network_topology.md`](road_network_topology.md) — edge directionality

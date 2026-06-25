@@ -62,3 +62,8 @@ reports/benchmarks/*.json
 output/**/*
 !output/**/
 !output/**/.gitkeep
+
+# Local pipeline logs (bootstrap, populate)
+*.log
+bootstrap*.log
+populate.log

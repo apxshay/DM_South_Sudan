@@ -2,7 +2,9 @@
 
 **Project:** South Sudan RDBMS vs Graph DB comparison  
 **Status:** Complete  
-**Last updated:** 2026-06-24
+**Last updated:** 2026-06-25
+
+**Regenerate outputs:** see [`README.md`](../README.md) (bootstrap) or individual scripts listed in each log section below.
 
 ---
 
@@ -142,16 +144,17 @@ python scripts/prepare_db_import_layers.py
 - `scripts/load_postgresql.py`, `scripts/load_neo4j.py`, `scripts/populate_databases.py`
 - `docs/phase3_database_population.md`
 
-**Recommended host for benchmarks:** Windows 10 + AMD Ryzen 5 (native `linux/amd64` for both PostGIS and Neo4j).
+**Recommended host for benchmarks:** Windows 10 + AMD Ryzen 5 (native `linux/amd64` for both PostGIS and Neo4j). macOS Apple Silicon is fine for development but not fair Phase 5 timings — see [`docs/phase3_database_population.md`](phase3_database_population.md).
 
-**Reproduce (Windows):**
-```powershell
-copy .env.example .env
-docker compose up -d
-python scripts\populate_databases.py --reset
-```
+**Reproduce:** follow [`README.md`](../README.md) Steps 3–5, or:
 
-See `docs/phase3_database_population.md` for full setup, validation, and troubleshooting.
+| Windows | macOS / Linux |
+|---------|---------------|
+| `copy .env.example .env` | `cp .env.example .env` |
+| `docker compose up -d` | same |
+| `python scripts\populate_databases.py --reset` | `python scripts/populate_databases.py --reset` |
+
+macOS: set `POSTGRES_PORT=5433` in `.env` if port 5432 is in use.
 
 ---
 
@@ -162,6 +165,7 @@ See `docs/phase3_database_population.md` for full setup, validation, and trouble
 - `docs/phase2_relational_schema.md` — PostgreSQL/PostGIS DDL
 - `docs/phase2_graph_schema.md` — Neo4j model
 - `docs/phase5_benchmark_queries.md` — Q1–Q5 templates
-- `docs/phase3_database_population.md` — Phase 3 loaders + Windows setup
+- [`README.md`](../README.md) — main setup guide (Windows + macOS)
+- `docs/phase3_database_population.md` — Phase 3 validation counts and platform notes
 - `AGENT_PHASE3.md` — Phase 3 agent instructions (complete)
 - `data/processed/roads_hotosm/` — road nodes and edges inputs
