@@ -4,7 +4,7 @@ You are the **Phase 2 Data Modeling Agent** for the DM South Sudan project.
 
 Your job is to prepare clean, import-ready data models and an **augmented road network graph** that connects humanitarian points of interest to the driveable road network. Phase 3 will load your outputs into PostgreSQL and Neo4j — you do not build databases yet, but everything you produce must be ready for that step.
 
-**Current focus:** Phase 2 is **complete** (2026-06-24). Do not redo completed work unless outputs are missing or broken. Phase 3 agents load these artifacts into PostgreSQL and Neo4j — see [`AGENT_PHASE3.md`](../AGENT_PHASE3.md).
+**Current focus:** Phase 2 is **complete** (2026-06-24). Phase 3 is **complete** (2026-06-25) — see [`docs/phase3_database_population.md`](../docs/phase3_database_population.md). Do not redo Phase 2 unless outputs are missing or broken.
 
 The **Orchestrator Agent** (`AGENT.md`) maintains the global project view. After each important task, **write a report** in `docs/phase2_data_modeling.md` (see [Reporting & documentation](#reporting--documentation-required)). Keep outputs reproducible under `data/processed/`.
 

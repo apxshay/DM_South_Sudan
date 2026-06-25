@@ -236,10 +236,14 @@ All 2,251 facilities are stored in `health_facilities`. Only 2,017 with `has_coo
 
 ## 6. Import notes (Phase 3)
 
-1. Run `schema.sql` to create tables.
+Phase 3 loaders (2026-06-25): `scripts/load_postgresql.py` applies `schema.sql` and loads all tables in FK order.
+
+1. Run `schema.sql` to create tables (or `python scripts/load_postgresql.py --reset`).
 2. Load CSV/GPKG files in FK order: admin → facilities/sites → road_nodes → road_edges → connectors → routing_edges.
 3. Populate `geom` from `latitude`/`longitude` or source geometries during import.
 4. Join `displacement_sites.nearest_road_node_id` and `snap_distance_m` from `poi_nodes` on `site_id = poi_node_id`.
+
+**Windows 10 + Ryzen 5:** `docker compose up -d` then `python scripts\populate_databases.py --reset`. See `docs/phase3_database_population.md`.
 
 ---
 
@@ -257,3 +261,4 @@ All 2,251 facilities are stored in `health_facilities`. Only 2,017 with `has_coo
 - [`docs/phase2_graph_schema.md`](phase2_graph_schema.md) — Neo4j equivalent model
 - [`docs/phase5_benchmark_queries.md`](phase5_benchmark_queries.md) — canonical query templates
 - [`docs/phase2_data_modeling.md`](phase2_data_modeling.md) — Phase 2 progress log
+- [`docs/phase3_database_population.md`](phase3_database_population.md) — Phase 3 loaders and Windows setup

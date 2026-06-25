@@ -85,3 +85,19 @@ python scripts/prepare_db_import_layers.py
 ```
 
 See `docs/phase2_data_modeling.md` for Phase 2 progress. Schemas: `docs/phase2_relational_schema.md`, `docs/phase2_graph_schema.md`.
+
+## Database import (Phase 3)
+
+Processed files above are loaded into PostgreSQL/PostGIS and Neo4j by:
+
+```powershell
+docker compose up -d
+python scripts\populate_databases.py --reset
+```
+
+```bash
+docker compose up -d
+python scripts/populate_databases.py --reset
+```
+
+Full Windows 10 + Ryzen 5 setup: `docs/phase3_database_population.md`.

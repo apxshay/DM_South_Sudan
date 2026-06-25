@@ -133,6 +133,28 @@ python scripts/prepare_db_import_layers.py
 
 ---
 
+## Phase 3 — Database population (2026-06-25)
+
+**Summary:** Docker Compose stack, PostgreSQL/Neo4j loaders, and population report added. Databases populated from `data/processed/` with expected counts; Q1 smoke prerequisites verified.
+
+**Deliverables:**
+- `docker-compose.yml`, `.env.example`, `src/db/db_config.py`
+- `scripts/load_postgresql.py`, `scripts/load_neo4j.py`, `scripts/populate_databases.py`
+- `docs/phase3_database_population.md`
+
+**Recommended host for benchmarks:** Windows 10 + AMD Ryzen 5 (native `linux/amd64` for both PostGIS and Neo4j).
+
+**Reproduce (Windows):**
+```powershell
+copy .env.example .env
+docker compose up -d
+python scripts\populate_databases.py --reset
+```
+
+See `docs/phase3_database_population.md` for full setup, validation, and troubleshooting.
+
+---
+
 ## References
 
 - `docs/phase1_data_understanding.md` — Section 4 (health facilities)
@@ -140,5 +162,6 @@ python scripts/prepare_db_import_layers.py
 - `docs/phase2_relational_schema.md` — PostgreSQL/PostGIS DDL
 - `docs/phase2_graph_schema.md` — Neo4j model
 - `docs/phase5_benchmark_queries.md` — Q1–Q5 templates
-- `AGENT_PHASE3.md` — Phase 3 database population instructions
+- `docs/phase3_database_population.md` — Phase 3 loaders + Windows setup
+- `AGENT_PHASE3.md` — Phase 3 agent instructions (complete)
 - `data/processed/roads_hotosm/` — road nodes and edges inputs

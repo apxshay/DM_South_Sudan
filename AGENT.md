@@ -148,9 +148,15 @@ Health facility reconciliation, network integration (2,094 POI connectors), admi
 
 Regenerate Phase 2: `./scripts/bootstrap.sh --from network` or run scripts listed in `docs/phase2_data_modeling.md`.
 
-**Phase 3 — Database Population: PENDING**
+**Phase 3 — Database Population: COMPLETE** (2026-06-25)
 
-Load processed files into PostgreSQL/PostGIS and Neo4j. Instructions: **`AGENT_PHASE3.md`**. Report: `docs/phase3_database_population.md` (to be created).
+PostgreSQL/PostGIS and Neo4j loaders implemented (`scripts/load_postgresql.py`, `scripts/load_neo4j.py`, `scripts/populate_databases.py`), Docker Compose stack added, counts and Q1 smoke prerequisites validated. Report: `docs/phase3_database_population.md`.
+
+**Recommended benchmark host:** Windows 10 + AMD Ryzen 5 — both `postgis/postgis` and `neo4j` Docker images run native `linux/amd64`. macOS Apple Silicon runs Neo4j natively but PostGIS under x86 emulation (not fair for timing comparisons).
+
+**Phase 5 — Benchmarking: NEXT**
+
+Implement and run Q1–Q5 from `docs/phase5_benchmark_queries.md` against live databases on the Ryzen machine.
 
 ### Repository layout
 
@@ -158,8 +164,10 @@ Load processed files into PostgreSQL/PostGIS and Neo4j. Instructions: **`AGENT_P
 data_management/
 ├── AGENT.md                          # Orchestrator
 ├── AGENT_PHASE2.md                   # Phase 2 (complete)
-├── AGENT_PHASE3.md                   # Phase 3 (active)
+├── AGENT_PHASE3.md                   # Phase 3 (complete)
 ├── README.md
+├── docker-compose.yml                # PostGIS + Neo4j
+├── .env.example                      # DB credentials template
 ├── environment.yml                   # Conda/Miniforge environment (recommended on Windows)
 ├── requirements.txt
 ├── data/
@@ -179,8 +187,11 @@ data_management/
 │   └── interim/                      # OSMnx build cache (excluded from git)
 │       └── osmnx/
 ├── src/db/
+│   ├── db_config.py
 │   ├── postgresql/schema.sql
-│   └── neo4j/constraints.cypher
+│   ├── postgresql/load_data.sql
+│   ├── neo4j/constraints.cypher
+│   └── neo4j/import.cypher
 ├── docs/
 │   ├── phase1_data_understanding.md  # Full Phase 1 analysis report
 │   ├── phase1_profile.json           # Machine-readable profiles
@@ -188,6 +199,7 @@ data_management/
 │   ├── phase2_data_modeling.md       # Phase 2 progress log
 │   ├── phase2_relational_schema.md   # PostgreSQL/PostGIS schema
 │   ├── phase2_graph_schema.md        # Neo4j schema
+│   ├── phase3_database_population.md # Phase 3 population log + Windows setup
 │   ├── phase5_benchmark_queries.md   # Q1–Q5 benchmark templates
 ├── output/                           # Generated HTML maps (excluded from git)
 ├── scripts/
@@ -206,6 +218,9 @@ data_management/
 │   ├── build_displacement_sites.py   # Phase 2: DTM R11 canonical sites
 │   ├── build_reference_data.py       # Phase 2: hubs + admission capacity
 │   ├── prepare_db_import_layers.py   # Phase 2: routing_edges for DB import
+│   ├── load_postgresql.py            # Phase 3: PostgreSQL/PostGIS population
+│   ├── load_neo4j.py                 # Phase 3: Neo4j population
+│   ├── populate_databases.py         # Phase 3: run both loaders
 │   ├── health_facility_admin.py      # Phase 2: admin/state harmonization helpers
 │   ├── bootstrap.ps1 / bootstrap.sh  # Full pipeline runner (all platforms)
 │   ├── setup_conda.sh                # macOS/Linux conda bootstrap
@@ -286,7 +301,20 @@ Full topology methodology: `docs/road_network_topology.md`
 
 ### Bootstrap on a new machine
 
-**Windows 10 + Miniforge (recommended):**
+**Windows 10 + AMD Ryzen 5 (recommended — data pipeline + Phase 3 databases):**
+
+```powershell
+.\scripts\setup.ps1
+conda activate dm-south-sudan
+.\scripts\bootstrap.ps1
+copy .env.example .env
+docker compose up -d
+python scripts\populate_databases.py --reset
+```
+
+Requires Docker Desktop with WSL 2. See `docs/phase3_database_population.md` for validation and troubleshooting.
+
+**Windows 10 — data pipeline only** (skip Docker if not ready for Phase 3):
 
 ```powershell
 .\scripts\setup.ps1
@@ -344,16 +372,16 @@ GeoPandas/GDAL should be installed via **conda-forge** (`environment.yml`), not 
 
 ## Next Expected Milestone
 
-**Phase 3 — Database Population** (see `AGENT_PHASE3.md`)
+**Phase 5 — Benchmarking** (see `docs/phase5_benchmark_queries.md`)
 
-1. Set up PostgreSQL/PostGIS and Neo4j (GDS plugin for later Q5).
-2. Apply `src/db/postgresql/schema.sql` and load all `data/processed/` files.
-3. Import Neo4j nodes/relationships per `docs/phase2_graph_schema.md`.
-4. Verify counts and document in `docs/phase3_database_population.md`.
+1. Run on **Windows 10 + AMD Ryzen 5** (native `amd64` for both databases).
+2. Warm up PostgreSQL and Neo4j; run Q1–Q5 with repeated trials.
+3. Record median latency, implementation complexity, and platform metadata in thesis.
 
-**Phase 2 resolved:** merge rules, connector snap, dual schemas, benchmark query spec (`docs/phase5_benchmark_queries.md`).
+**Phase 3 complete:** loaders in `scripts/`, Docker in `docker-compose.yml`, report in `docs/phase3_database_population.md`.
 
 Reference documents:
+- `docs/phase3_database_population.md` — population + Windows setup
 - `docs/phase2_relational_schema.md`
 - `docs/phase2_graph_schema.md`
 - `docs/phase5_benchmark_queries.md`

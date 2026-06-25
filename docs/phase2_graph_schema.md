@@ -197,6 +197,8 @@ total_m = camp.snap_distance_m
 | `CONNECTOR_REVERSE` | `routing_edges.csv` WHERE `edge_type=connector_reverse` |
 | `LogisticalHub` | `logistical_hubs.csv` (label on matching `HealthFacility`) |
 
+**Loader:** `scripts/load_neo4j.py` (MERGE-based, idempotent). Orchestrator: `scripts/populate_databases.py`. Report: `docs/phase3_database_population.md`.
+
 ---
 
 ## 8. Query mapping
@@ -220,5 +222,6 @@ Same as relational schema — long snaps, unknown facility types, no airport hub
 ## 10. Related documents
 
 - [`docs/phase2_relational_schema.md`](phase2_relational_schema.md)
+- [`docs/phase3_database_population.md`](phase3_database_population.md)
 - [`docs/phase5_benchmark_queries.md`](phase5_benchmark_queries.md)
 - [`docs/road_network_topology.md`](road_network_topology.md) — edge directionality

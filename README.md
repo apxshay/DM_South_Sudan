@@ -8,7 +8,28 @@ Master's degree project comparing **PostgreSQL (RDBMS)** and **Neo4j (graph DB)*
 
 Raw datasets and processed outputs are **not in git** (see `.gitignore`). After cloning, run the bootstrap scripts once to download data and generate local artifacts.
 
-### Windows 10 + Miniforge (recommended)
+### Windows 10 + AMD Ryzen 5 (recommended for benchmarks)
+
+This is the **recommended platform** for Phase 3 database population and Phase 5 benchmarking. Both Docker images (`postgis/postgis`, `neo4j`) run **native `linux/amd64`** on Ryzen — no CPU emulation.
+
+**Prerequisites:** [Miniforge](https://github.com/conda-forge/miniforge/releases) (x86_64), [Docker Desktop](https://www.docker.com/products/docker-desktop/) with WSL 2, virtualization enabled in BIOS.
+
+```powershell
+git clone https://github.com/apxshay/DM_South_Sudan.git
+cd DM_South_Sudan
+
+.\scripts\setup.ps1
+conda activate dm-south-sudan
+.\scripts\bootstrap.ps1
+
+copy .env.example .env
+docker compose up -d
+python scripts\populate_databases.py --reset
+```
+
+Full Phase 3 checklist, validation queries, and troubleshooting: **`docs/phase3_database_population.md`** (Windows section).
+
+### Windows 10 + Miniforge — data pipeline only
 
 ```powershell
 git clone https://github.com/apxshay/DM_South_Sudan.git
@@ -52,6 +73,9 @@ All bootstrap scripts are safe to re-run. Generated files live under `data/raw/`
 | Raw data already downloaded | `./scripts/bootstrap.sh --skip-download` |
 | Re-run Phase 2 merge only | `./scripts/bootstrap.sh --from merge` |
 | Re-run Phase 2 network integration | `./scripts/bootstrap.sh --from network` or `.\scripts\bootstrap.ps1 -From network` |
+| Phase 3 — populate databases | `docker compose up -d` then `python scripts/populate_databases.py --reset` |
+| Phase 3 — PostgreSQL only | `python scripts/load_postgresql.py --reset` |
+| Phase 3 — Neo4j only | `python scripts/load_neo4j.py --reset` |
 | Single script | `python scripts/merge_health_facilities.py` or `python scripts/integrate_network.py` (with conda env active) |
 
 ### Conda on any OS (manual steps)
@@ -87,6 +111,8 @@ Open any HTML file in a browser. The augmented network map shows road graph laye
 ## Requirements
 
 - **Windows / macOS / Linux:** Miniforge or Conda with `conda-forge` (GeoPandas/GDAL, osmium-tool) — **recommended**
+- **Phase 3 / Phase 5:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS) or Docker Engine (Linux)
+- **Benchmarking:** Windows 10 + AMD Ryzen 5 (or any native `amd64` host) so PostgreSQL and Neo4j run without emulation — see `docs/phase3_database_population.md`
 - **macOS/Linux alternative:** Python 3.11+ venv (partial support; road topology may fail without osmium)
 - Network access for HDX dataset download (~600 MB total; HOT OSM roads ~50 MB compressed)
 - Network access for Geofabrik OSM extract (~130 MB; road topology script)
@@ -96,6 +122,8 @@ Open any HTML file in a browser. The augmented network map shows road graph laye
 
 ```
 ├── AGENT.md / AGENT_PHASE2.md / AGENT_PHASE3.md
+├── docker-compose.yml       # PostGIS + Neo4j (Phase 3)
+├── .env.example             # DB connection template (copy to .env)
 ├── environment.yml          # Conda environment (all platforms)
 ├── requirements.txt         # pip fallback for venv setups
 ├── data/
@@ -109,14 +137,21 @@ Open any HTML file in a browser. The augmented network map shows road graph laye
 │   ├── phase2_data_modeling.md
 │   ├── phase2_relational_schema.md
 │   ├── phase2_graph_schema.md
+│   ├── phase3_database_population.md
 │   └── phase5_benchmark_queries.md
 ├── src/db/
+│   ├── db_config.py
 │   ├── postgresql/schema.sql
-│   └── neo4j/constraints.cypher
+│   ├── postgresql/load_data.sql
+│   ├── neo4j/constraints.cypher
+│   └── neo4j/import.cypher
 ├── output/                  # Generated HTML maps (not in git)
 └── scripts/
     ├── setup.ps1 / setup_conda.sh / setup.sh
     ├── bootstrap.ps1 / bootstrap.sh
+    ├── populate_databases.py
+    ├── load_postgresql.py
+    ├── load_neo4j.py
     ├── resolve_python.sh
     ├── download_datasets.py
     ├── explore_datasets.py
@@ -164,6 +199,18 @@ HOT OSM shapefile roads are filtered to `primary`, `secondary`, `tertiary`, and 
 | Relational + graph schemas | Complete | `docs/phase2_relational_schema.md`, `docs/phase2_graph_schema.md` |
 | Benchmark queries (Q1–Q5) | Complete | `docs/phase5_benchmark_queries.md` |
 
-Progress log: `docs/phase2_data_modeling.md`. Agent instructions: `AGENT_PHASE2.md` (complete), **`AGENT_PHASE3.md`** (next).
+Progress log: `docs/phase2_data_modeling.md`. Agent instructions: `AGENT_PHASE2.md` (complete).
 
-**Phase 3 — Database Population:** pending. Load processed data into PostgreSQL/PostGIS and Neo4j using `src/db/` schemas. See `AGENT_PHASE3.md`.
+**Phase 3 — Database Population:** complete (2026-06-25). Loaders, Docker Compose, and validation documented in `docs/phase3_database_population.md`.
+
+| Step | Status | Script / doc |
+|------|--------|----------------|
+| Docker Compose (PostGIS + Neo4j + GDS) | Complete | `docker-compose.yml` |
+| PostgreSQL loader | Complete | `scripts/load_postgresql.py` |
+| Neo4j loader | Complete | `scripts/load_neo4j.py` |
+| Orchestrator | Complete | `scripts/populate_databases.py` |
+| Population report | Complete | `docs/phase3_database_population.md` |
+
+**Run on Windows 10 + Ryzen 5:** see README quick start and `docs/phase3_database_population.md` (Windows section).
+
+**Phase 5 — Benchmarking:** next. Run Q1–Q5 from `docs/phase5_benchmark_queries.md` on the Ryzen machine for fair `amd64` timings.

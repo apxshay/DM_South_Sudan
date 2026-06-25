@@ -1,5 +1,7 @@
 # Phase 3 Agent — Database Population
 
+**Status:** COMPLETE (2026-06-25). Report: `docs/phase3_database_population.md`. **Next:** Phase 5 benchmarking on Windows 10 + AMD Ryzen 5 (native `amd64`).
+
 You are the **Phase 3 Database Population Agent** for the DM South Sudan project.
 
 Your job is to **load Phase 2 processed datasets into PostgreSQL (PostGIS) and Neo4j**, verify row/relationship counts, and document the import so Phase 5 benchmarking can run against live databases.
@@ -79,18 +81,26 @@ Phase 5 will benchmark **five queries** (shortest path, multi-source routing, re
 
 1. **PostgreSQL** with **PostGIS** extension (local, Docker, or university-provided).
 2. **Neo4j** 5.x (Community or AuraDB) with **APOC**; **Graph Data Science (GDS)** plugin required for Q5 max-flow in Phase 5.
-3. Store connection settings in a **gitignored** config (e.g. `.env` or `config/db.local.yaml`) — never commit credentials.
+3. Store connection settings in a **gitignored** config (`.env` from `.env.example`) — never commit credentials.
 4. Document versions (PostgreSQL, PostGIS, Neo4j, GDS) in `docs/phase3_database_population.md`.
 
-Suggested layout:
+**Platform:** Use **Windows 10 + AMD Ryzen 5** with Docker Desktop (WSL 2) for native `linux/amd64` on both `postgis/postgis` and `neo4j`. macOS Apple Silicon runs PostGIS under emulation — suitable for development, not fair benchmark timings.
+
+Suggested layout (implemented):
 
 ```
 src/db/postgresql/
-  schema.sql          # Already exists — apply first
-  load_data.sql       # You create — COPY / INSERT scripts or instructions
+  schema.sql          # Apply first
+  load_data.sql       # Validation queries + load order reference
 src/db/neo4j/
-  constraints.cypher  # Already exists — run before or after load
-  import.cypher       # You create — LOAD CSV or periodic commit IMPORT
+  constraints.cypher  # Applied by load_neo4j.py after import
+  import.cypher       # Validation Cypher reference
+scripts/
+  load_postgresql.py
+  load_neo4j.py
+  populate_databases.py
+docker-compose.yml
+.env.example
 ```
 
 ### Task 2 — PostgreSQL / PostGIS population
@@ -213,14 +223,41 @@ Update **`AGENT.md`** current status when Phase 3 is complete (brief note only).
 
 Phase 3 is complete when:
 
-- [ ] PostgreSQL schema applied; all tables loaded with expected counts
-- [ ] PostGIS geometries valid (`ST_IsValid` spot-checks on samples)
-- [ ] Neo4j nodes and relationships loaded with expected counts
-- [ ] Neo4j constraints/indexes applied
-- [ ] `CONNECTOR_REVERSE` relationships present for Q5
-- [ ] Parity documented in `docs/phase3_database_population.md`
-- [ ] Q1 smoke test passes on both databases (nearest hospital from one camp)
-- [ ] `AGENT.md` updated — Phase 3 complete, Phase 5 next
+- [x] PostgreSQL schema applied; all tables loaded with expected counts
+- [x] PostGIS geometries valid (`ST_IsValid` spot-checks on samples)
+- [x] Neo4j nodes and relationships loaded with expected counts
+- [x] Neo4j constraints/indexes applied
+- [x] `CONNECTOR_REVERSE` relationships present for Q5
+- [x] Parity documented in `docs/phase3_database_population.md`
+- [x] Q1 smoke test passes on both databases (nearest hospital from one camp)
+- [x] `AGENT.md` updated — Phase 3 complete, Phase 5 next
+
+---
+
+## Implementation delivered (2026-06-25)
+
+| Artifact | Path |
+|----------|------|
+| Docker Compose | `docker-compose.yml` |
+| Connection config | `.env.example`, `src/db/db_config.py` |
+| PostgreSQL loader | `scripts/load_postgresql.py` |
+| Neo4j loader | `scripts/load_neo4j.py` |
+| Orchestrator | `scripts/populate_databases.py` |
+| SQL reference | `src/db/postgresql/load_data.sql` |
+| Cypher reference | `src/db/neo4j/import.cypher` |
+| Population report | `docs/phase3_database_population.md` |
+
+**Run loaders:**
+
+```bash
+docker compose up -d
+python scripts/populate_databases.py --reset
+```
+
+```powershell
+docker compose up -d
+python scripts\populate_databases.py --reset
+```
 
 ---
 
@@ -250,9 +287,27 @@ AGENT.md
 
 ## Environment (data pipeline — run before import if files missing)
 
+**Windows 10 + Ryzen 5 (recommended):**
+
+```powershell
+conda activate dm-south-sudan
+.\scripts\bootstrap.ps1                  # full Phase 1 + 2 (downloads HDX data)
+.\scripts\bootstrap.ps1 -SkipDownload      # reuse data/raw/
+.\scripts\bootstrap.ps1 -From network      # Phase 2 network + import layers only
+copy .env.example .env
+docker compose up -d
+python scripts\populate_databases.py --reset
+```
+
+**macOS / Linux:**
+
 ```bash
 conda activate dm-south-sudan
 ./scripts/bootstrap.sh --skip-download    # full Phase 1 + 2 without re-downloading HDX
+cp .env.example .env
+# macOS: set POSTGRES_PORT=5433 in .env if port 5432 is in use
+docker compose up -d
+python scripts/populate_databases.py --reset
 ```
 
-See `README.md` for Windows (`bootstrap.ps1`) and fresh-clone setup.
+See `README.md` and `docs/phase3_database_population.md` for full Windows setup, validation queries, and platform notes.

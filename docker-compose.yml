@@ -1,0 +1,52 @@
+# Local PostgreSQL/PostGIS + Neo4j for Phase 3 database population.
+# Recommended benchmark host: Windows 10 + AMD Ryzen 5 (native linux/amd64 for both images).
+#
+# Usage:
+#   docker compose up -d
+#   copy .env.example .env          # Windows
+#   cp .env.example .env            # macOS/Linux
+#   conda activate dm-south-sudan
+#   python scripts/populate_databases.py --reset
+#
+# macOS Apple Silicon: if port 5432 is in use, set POSTGRES_PORT=5433 in .env
+
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: dm-south-sudan-postgis
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dm_ssd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dm_ssd_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-dm_south_sudan}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - dm_postgis_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dm_ssd} -d ${POSTGRES_DB:-dm_south_sudan}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: dm-south-sudan-neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-dm_ssd_dev}
+      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*,gds.*
+      NEO4J_dbms_security_procedures_allowlist: apoc.*,gds.*
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    volumes:
+      - dm_neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  dm_postgis_data:
+  dm_neo4j_data:

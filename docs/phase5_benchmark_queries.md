@@ -4,7 +4,19 @@
 **Date:** 2026-06-24  
 **Status:** Canonical query templates for Phase 5 benchmarking
 
-Schemas: [`phase2_relational_schema.md`](phase2_relational_schema.md), [`phase2_graph_schema.md`](phase2_graph_schema.md)
+Schemas: [`phase2_relational_schema.md`](phase2_relational_schema.md), [`phase2_graph_schema.md`](phase2_graph_schema.md)  
+**Prerequisite:** Phase 3 complete — databases loaded per [`phase3_database_population.md`](phase3_database_population.md)
+
+---
+
+## Benchmark platform
+
+Run Phase 5 timing experiments on **Windows 10 + AMD Ryzen 5** (or any host where both Docker images run **native `linux/amd64`**):
+
+- `postgis/postgis:16-3.4` — amd64 only
+- `neo4j:5.26-community` — amd64 + arm64
+
+Do **not** publish comparative timings from macOS Apple Silicon unless both databases are on equal footing (PostGIS is emulated there). Document CPU model, OS, Docker version, and image architectures in the thesis methods section.
 
 ---
 
@@ -282,12 +294,14 @@ Max-flow is **not** native SQL. Implement via application layer (e.g. NetworkX `
 
 | Step | Action |
 |------|--------|
-| 1 | Load PostgreSQL schema + data |
-| 2 | Load Neo4j nodes/relationships + run `constraints.cypher` |
-| 3 | Warm up both databases |
-| 4 | Run each query N times; record median latency |
-| 5 | Record implementation complexity (lines of code, readability) |
-| 6 | Include data quality caveats in results section |
+| 0 | Complete Phase 3 on Ryzen/Windows — see `phase3_database_population.md` |
+| 1 | Confirm both containers native `x86_64`: `docker exec ... uname -m` |
+| 2 | Load PostgreSQL schema + data (`scripts/load_postgresql.py` or already loaded) |
+| 3 | Load Neo4j nodes/relationships + `constraints.cypher` |
+| 4 | Warm up both databases |
+| 5 | Run each query N times; record median latency |
+| 6 | Record implementation complexity (lines of code, readability) |
+| 7 | Include data quality caveats and platform metadata in results section |
 
 ---
 
@@ -296,5 +310,6 @@ Max-flow is **not** native SQL. Implement via application layer (e.g. NetworkX `
 - [`phase2_relational_schema.md`](phase2_relational_schema.md)
 - [`phase2_graph_schema.md`](phase2_graph_schema.md)
 - [`phase2_data_modeling.md`](phase2_data_modeling.md)
+- [`phase3_database_population.md`](phase3_database_population.md)
 - [`road_network_topology.md`](road_network_topology.md)
 - [`AGENT_PHASE3.md`](../AGENT_PHASE3.md)
