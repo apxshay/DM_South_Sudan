@@ -83,45 +83,36 @@ Prepare import-ready datasets and schemas:
 
 The two models should represent the same domain while remaining natural for their respective database technologies.
 
-### Phase 3 — Data Integration
+### Phase 3 — Database Population
 
-Build ETL pipelines that:
+Load Phase 2 processed datasets into both databases:
 
-* Load raw datasets
-* Clean data
-* Normalize formats
-* Generate import-ready outputs
+* Apply `src/db/postgresql/schema.sql` and load CSV/GPKG files
+* Apply `src/db/neo4j/constraints.cypher` and import nodes/relationships
+* Verify row counts and cross-database parity
+* Document in `docs/phase3_database_population.md`
 
-### Phase 4 — Database Population
+See **`AGENT_PHASE3.md`** for full instructions.
 
-Populate:
+### Phase 4 — Query Design & Implementation
 
-* PostgreSQL (or equivalent RDBMS)
-* Neo4j (or equivalent Graph Database)
+Implement the five benchmark queries from `docs/phase5_benchmark_queries.md` in both PostgreSQL and Neo4j:
 
-### Phase 5 — Query Design
+* Q1 — Nearest hospital/PHCC from a camp
+* Q2 — Multi-camp → one referral hospital
+* Q3 — Reachability within 50 km of a hub
+* Q4 — State humanitarian aggregations (RDBMS showcase)
+* Q5 — Evacuation max flow (GDS on Neo4j; application-layer on PostgreSQL)
 
-Create equivalent queries for both systems.
-
-Examples:
-
-* Nearest hospital to a displacement site
-* Reachability analysis
-* Route discovery
-* Infrastructure impact analysis
-* Shortest path computation
-
-### Phase 6 — Benchmarking
+### Phase 5 — Benchmarking
 
 Compare:
 
-* Insert performance
-* Update performance
-* Query execution time
-* Complexity of implementation
+* Query execution time (median over N runs)
+* Complexity of implementation (lines of code, readability)
 * Expressiveness of query language
 
-### Phase 7 — Final Evaluation
+### Phase 6 — Final Evaluation
 
 Produce a rigorous comparison between the two database paradigms.
 
@@ -151,18 +142,24 @@ All raw datasets have been downloaded, profiled, and documented. Visual validati
 
 An OSMnx-based driveable road graph for South Sudan has been built with proper T-junction connectivity. Processed node/edge layers and an interactive topology validation map are available locally.
 
-**Phase 2 — Data Modeling: IN PROGRESS**
+**Phase 2 — Data Modeling: COMPLETE** (2026-06-24)
 
-Health facility reconciliation complete (2,251 canonical facilities; 2,017 with valid coordinates; state codes harmonized to SS00–SS10). Network integration and database schemas pending.
+Health facility reconciliation, network integration (2,094 POI connectors), admin dimensions, DB import layers, dual schemas (PostgreSQL/PostGIS + Neo4j), and benchmark query spec (Q1–Q5) are ready for Phase 3 import.
 
-Regenerate Phase 2 outputs: `python scripts/merge_health_facilities.py` or `./scripts/bootstrap.sh --from merge`.
+Regenerate Phase 2: `./scripts/bootstrap.sh --from network` or run scripts listed in `docs/phase2_data_modeling.md`.
+
+**Phase 3 — Database Population: PENDING**
+
+Load processed files into PostgreSQL/PostGIS and Neo4j. Instructions: **`AGENT_PHASE3.md`**. Report: `docs/phase3_database_population.md` (to be created).
 
 ### Repository layout
 
 ```
 data_management/
-├── AGENT.md                          # This file
-├── README.md                         # Setup and usage instructions
+├── AGENT.md                          # Orchestrator
+├── AGENT_PHASE2.md                   # Phase 2 (complete)
+├── AGENT_PHASE3.md                   # Phase 3 (active)
+├── README.md
 ├── environment.yml                   # Conda/Miniforge environment (recommended on Windows)
 ├── requirements.txt
 ├── data/
@@ -174,15 +171,24 @@ data_management/
 │   │   └── displacement_sites/       # IOM DTM site assessments (rounds 4–11)
 │   ├── processed/                    # Generated graph layers (excluded from git)
 │   │   ├── roads_hotosm/             # OSMnx road nodes, edges, topology_summary.json
-│   │   ├── health_facilities/        # Phase 2: canonical merged facilities (planned)
-│   │   └── network/                  # Phase 2: POI nodes, connector edges (planned)
+│   │   ├── health_facilities/        # Canonical merge + capacity
+│   │   ├── admin/                    # State/county/payam dimensions
+│   │   ├── displacement_sites/       # DTM R11 canonical
+│   │   ├── reference/                # Logistical hubs
+│   │   └── network/                  # POI nodes, connectors, routing_edges
 │   └── interim/                      # OSMnx build cache (excluded from git)
 │       └── osmnx/
+├── src/db/
+│   ├── postgresql/schema.sql
+│   └── neo4j/constraints.cypher
 ├── docs/
 │   ├── phase1_data_understanding.md  # Full Phase 1 analysis report
 │   ├── phase1_profile.json           # Machine-readable profiles
 │   ├── road_network_topology.md      # Road graph extraction report
-│   └── phase2_data_modeling.md       # Phase 2 progress log
+│   ├── phase2_data_modeling.md       # Phase 2 progress log
+│   ├── phase2_relational_schema.md   # PostgreSQL/PostGIS schema
+│   ├── phase2_graph_schema.md        # Neo4j schema
+│   ├── phase5_benchmark_queries.md   # Q1–Q5 benchmark templates
 ├── output/                           # Generated HTML maps (excluded from git)
 ├── scripts/
 │   ├── setup.ps1                     # Windows + Miniforge bootstrap
@@ -195,6 +201,11 @@ data_management/
 │   ├── build_road_network_topology.py # OSMnx road graph extraction
 │   ├── visualize_road_topology.py    # Topology validation map (toggleable nodes/edges)
 │   ├── merge_health_facilities.py    # Phase 2: WHO + SS 2023 canonical merge
+│   ├── integrate_network.py          # Phase 2: POI–road connectors
+│   ├── build_admin_dimensions.py     # Phase 2: admin dimension tables
+│   ├── build_displacement_sites.py   # Phase 2: DTM R11 canonical sites
+│   ├── build_reference_data.py       # Phase 2: hubs + admission capacity
+│   ├── prepare_db_import_layers.py   # Phase 2: routing_edges for DB import
 │   ├── health_facility_admin.py      # Phase 2: admin/state harmonization helpers
 │   ├── bootstrap.ps1 / bootstrap.sh  # Full pipeline runner (all platforms)
 │   ├── setup_conda.sh                # macOS/Linux conda bootstrap
@@ -304,17 +315,27 @@ conda activate dm-south-sudan
 ```bash
 ./scripts/bootstrap.sh --skip-download          # reuse data/raw/
 ./scripts/bootstrap.sh --from merge             # Phase 2 merge only
+./scripts/bootstrap.sh --from network             # Phase 2 network + schemas (full Phase 2)
 ```
 
-**Conda on any OS (manual):**
+**Conda on any OS (manual — full pipeline through Phase 2):**
 
 ```bash
 conda env create -f environment.yml
 conda activate dm-south-sudan
 python scripts/create_dirs.py
 python scripts/download_datasets.py
+python scripts/explore_datasets.py
+python scripts/visualize_data_validation.py
 python scripts/build_road_network_topology.py
+python scripts/visualize_road_topology.py
 python scripts/merge_health_facilities.py
+python scripts/integrate_network.py
+python scripts/visualize_augmented_network.py
+python scripts/build_admin_dimensions.py
+python scripts/build_displacement_sites.py
+python scripts/build_reference_data.py
+python scripts/prepare_db_import_layers.py
 ```
 
 GeoPandas/GDAL should be installed via **conda-forge** (`environment.yml`), not pip alone. Road topology requires **osmium-tool** (conda-forge) and **osmnx** (pip).
@@ -323,20 +344,20 @@ GeoPandas/GDAL should be installed via **conda-forge** (`environment.yml`), not 
 
 ## Next Expected Milestone
 
-**Phase 2 — Data Modeling**
+**Phase 3 — Database Population** (see `AGENT_PHASE3.md`)
 
-1. **Health facility reconciliation** — merge WHO 2025 (1,988 rows) and SS 2023 (1,513 rows) into one canonical dataset; resolve duplicate codes, schema differences, and missing coordinates (Phase 1 Section 4).
-2. **Network integration** — for each health facility (~1,900 with coordinates) and displacement site (77, IOM DTM Round 11), find the nearest road intersection node and add a connector edge to the augmented graph.
-3. **Schema design** — document relational (PostgreSQL/PostGIS) and graph (Neo4j) models aligned with the augmented network.
-4. **Reporting** — log progress in `docs/phase2_data_modeling.md` after each major step.
+1. Set up PostgreSQL/PostGIS and Neo4j (GDS plugin for later Q5).
+2. Apply `src/db/postgresql/schema.sql` and load all `data/processed/` files.
+3. Import Neo4j nodes/relationships per `docs/phase2_graph_schema.md`.
+4. Verify counts and document in `docs/phase3_database_population.md`.
 
-**Resolved:** primary road network (OSMnx graph), displacement round (Round 11), POI linking method (snap to nearest road node + connector edge).
-
-**Still open:** exact health-facility merge rules; handling facilities without coordinates; IDMC data role in schemas (national context only).
+**Phase 2 resolved:** merge rules, connector snap, dual schemas, benchmark query spec (`docs/phase5_benchmark_queries.md`).
 
 Reference documents:
-- `docs/phase1_data_understanding.md`
-- `docs/road_network_topology.md`
+- `docs/phase2_relational_schema.md`
+- `docs/phase2_graph_schema.md`
+- `docs/phase5_benchmark_queries.md`
+- `AGENT_PHASE3.md`
 
 ---
 

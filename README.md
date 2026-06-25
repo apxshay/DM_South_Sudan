@@ -51,7 +51,8 @@ All bootstrap scripts are safe to re-run. Generated files live under `data/raw/`
 | Fresh clone, full rebuild | `./scripts/bootstrap.sh` (macOS/Linux) or `.\scripts\bootstrap.ps1` (Windows) |
 | Raw data already downloaded | `./scripts/bootstrap.sh --skip-download` |
 | Re-run Phase 2 merge only | `./scripts/bootstrap.sh --from merge` |
-| Single script | `python scripts/merge_health_facilities.py` (with conda env active) |
+| Re-run Phase 2 network integration | `./scripts/bootstrap.sh --from network` or `.\scripts\bootstrap.ps1 -From network` |
+| Single script | `python scripts/merge_health_facilities.py` or `python scripts/integrate_network.py` (with conda env active) |
 
 ### Conda on any OS (manual steps)
 
@@ -65,6 +66,12 @@ python scripts/visualize_data_validation.py
 python scripts/build_road_network_topology.py
 python scripts/visualize_road_topology.py
 python scripts/merge_health_facilities.py
+python scripts/integrate_network.py
+python scripts/visualize_augmented_network.py
+python scripts/build_admin_dimensions.py
+python scripts/build_displacement_sites.py
+python scripts/build_reference_data.py
+python scripts/prepare_db_import_layers.py
 ```
 
 ### Validation maps
@@ -73,8 +80,9 @@ python scripts/merge_health_facilities.py
 |-----|---------|--------|
 | Phase 1 raw data | `visualize_data_validation.py` | `output/south_sudan_data_validation.html` |
 | Road topology graph | `visualize_road_topology.py` | `output/south_sudan_road_topology_validation.html` |
+| Augmented network (POIs + connectors) | `visualize_augmented_network.py` | `output/south_sudan_augmented_network_validation.html` |
 
-Open either HTML file in a browser. The topology map includes **toggleable layers** for road nodes, edges (by highway class), displacement sites, and hospitals.
+Open any HTML file in a browser. The augmented network map shows road graph layers plus POI nodes and connector edges (including a review layer for snaps > 5 km).
 
 ## Requirements
 
@@ -87,29 +95,41 @@ Open either HTML file in a browser. The topology map includes **toggleable layer
 ## Project structure
 
 ```
-├── AGENT.md / AGENT_PHASE2.md
+├── AGENT.md / AGENT_PHASE2.md / AGENT_PHASE3.md
 ├── environment.yml          # Conda environment (all platforms)
 ├── requirements.txt         # pip fallback for venv setups
 ├── data/
 │   ├── raw/                 # HDX datasets + Geofabrik OSM extract (not in git)
-│   ├── processed/           # Road graph, canonical health facilities (not in git)
+│   ├── processed/           # Road graph, facilities, network, admin (not in git)
 │   └── interim/             # OSMnx build intermediates (not in git)
 ├── docs/
 │   ├── phase1_data_understanding.md
 │   ├── phase1_profile.json
 │   ├── road_network_topology.md
-│   └── phase2_data_modeling.md
+│   ├── phase2_data_modeling.md
+│   ├── phase2_relational_schema.md
+│   ├── phase2_graph_schema.md
+│   └── phase5_benchmark_queries.md
+├── src/db/
+│   ├── postgresql/schema.sql
+│   └── neo4j/constraints.cypher
 ├── output/                  # Generated HTML maps (not in git)
 └── scripts/
     ├── setup.ps1 / setup_conda.sh / setup.sh
     ├── bootstrap.ps1 / bootstrap.sh
     ├── resolve_python.sh
-    ├── download_datasets.py / download_datasets.sh
+    ├── download_datasets.py
     ├── explore_datasets.py
     ├── visualize_data_validation.py
     ├── build_road_network_topology.py
     ├── visualize_road_topology.py
-    └── merge_health_facilities.py
+    ├── merge_health_facilities.py
+    ├── integrate_network.py
+    ├── visualize_augmented_network.py
+    ├── build_admin_dimensions.py
+    ├── build_displacement_sites.py
+    ├── build_reference_data.py
+    └── prepare_db_import_layers.py
 ```
 
 ## Datasets
@@ -133,12 +153,17 @@ HOT OSM shapefile roads are filtered to `primary`, `secondary`, `tertiary`, and 
 
 **Road network topology:** complete (2026-06-24). OSMnx graph with 24,779 nodes and 62,345 edges. See `docs/road_network_topology.md`.
 
-**Phase 2 — Data Modeling:** in progress.
+**Phase 2 — Data Modeling:** complete (2026-06-24).
 
-| Step | Status | Script |
-|------|--------|--------|
+| Step | Status | Script / doc |
+|------|--------|----------------|
 | Health facility reconciliation | Complete | `merge_health_facilities.py` |
-| Network integration (POI → road graph) | Pending | — |
-| Relational + graph schema design | Pending | — |
+| Network integration (POI → road graph) | Complete | `integrate_network.py` |
+| Admin dimensions + reference data | Complete | `build_admin_dimensions.py`, `build_reference_data.py` |
+| DB import layers | Complete | `prepare_db_import_layers.py` |
+| Relational + graph schemas | Complete | `docs/phase2_relational_schema.md`, `docs/phase2_graph_schema.md` |
+| Benchmark queries (Q1–Q5) | Complete | `docs/phase5_benchmark_queries.md` |
 
-Progress log: `docs/phase2_data_modeling.md`. Phase 2 agent instructions: `AGENT_PHASE2.md`.
+Progress log: `docs/phase2_data_modeling.md`. Agent instructions: `AGENT_PHASE2.md` (complete), **`AGENT_PHASE3.md`** (next).
+
+**Phase 3 — Database Population:** pending. Load processed data into PostgreSQL/PostGIS and Neo4j using `src/db/` schemas. See `AGENT_PHASE3.md`.

@@ -79,7 +79,33 @@ All files under `data/processed/roads_hotosm/` (excluded from git — regenerate
 
 Edge counts exceed the Phase 1 HDX snapshot (20,512 ways) because the Geofabrik extract reflects **current live OSM** with broader coverage.
 
-### 3.2 Interim files (cached, gitignored)
+### 3.3 Edge directionality
+
+The processed graph is stored as a **directed** network: each row in `road_edges` is a one-way arc from `start_node_id` to `end_node_id`. OSMnx builds a `MultiDiGraph` and the build script calls `graph_from_xml(..., bidirectional=False)`, so one-way tags from OpenStreetMap are respected rather than forcing every road to be two-way.
+
+**Edge attributes:**
+
+| Column | Meaning |
+|--------|---------|
+| `oneway` | `True` if OSM marks the way as one-way; `False` for normal two-way roads (one direction of a pair) |
+| `reversed` | `True` if this arc runs opposite to the original OSM way direction |
+
+**Counts in the current extract (62,345 directed edges):**
+
+| Category | Count | Interpretation |
+|----------|-------|----------------|
+| Edges with `oneway=False` | 61,962 | Part of two-way roads (one directed arc per direction) |
+| Edges with `oneway=True` | 383 | Explicitly one-way |
+| Unique undirected node pairs | 30,795 | Distinct road links between intersection nodes |
+| Pairs with 2 opposing arcs (A→B and B→A) | 29,877 | **Bidirectional** — travel allowed in both directions |
+| Pairs with 1 arc only | 360 | **One-way only** |
+| Pairs with >2 arcs | 558 | Parallel or duplicate OSM ways between the same nodes |
+
+**Practical summary:** ~97% of road links are two-way in practice (modelled as two opposing directed edges). ~360 links are truly one-way. Routing and reachability queries in Phase 3 must follow edge direction; for two-way segments, either A→B or B→A may be used.
+
+**POI connectors** (Phase 2, `data/processed/network/connector_edges.gpkg`) are also directed: POI node → nearest `RoadNode`. They are straight-line access links, not bidirectional road segments. See `docs/phase2_data_modeling.md` (Task 1).
+
+### 3.4 Interim files (cached, gitignored)
 
 | Path | Description |
 |------|-------------|
@@ -115,7 +141,7 @@ The processed road graph maps to a property graph. Phase 2 will extend it with f
 - **Relationships:** `ROAD_SEGMENT` (road edges), `CONNECTOR` (POI to nearest road node)
 - **Road segment properties:** `edge_id`, `osm_id`, `highway`, `length_m`, …
 
-Full augmented model will be defined in Phase 2 schema documents.
+Full augmented model: `docs/phase2_graph_schema.md` and `docs/phase2_relational_schema.md`.
 
 ---
 
@@ -147,14 +173,15 @@ python scripts/visualize_road_topology.py
 | Highway filter | `primary`, `secondary`, `tertiary`, `unclassified` (consistent with Phase 1) |
 | Node definition | Intersections and dead-ends only (OSMnx `simplify_graph`) |
 | T-junction handling | OSMnx native topology |
+| Edge directionality | **Directed graph**; most roads are two-way (opposing arcs); ~360 one-way links; respect `oneway` in routing |
 
-Remaining Phase 2 work:
+Phase 2 (network integration, schemas) is **complete** — see `docs/phase2_data_modeling.md`, `docs/phase2_relational_schema.md`, `docs/phase2_graph_schema.md`.
 
-| Topic | Planned approach |
-|-------|------------------|
-| Health facilities | Merge WHO 2025 + SS 2023 into canonical dataset |
-| Displacement sites | IOM DTM Round 11; snap to road graph |
-| POI–road linking | Nearest intersection node + connector edge |
+| Topic | Status |
+|-------|--------|
+| Health facilities merge | ✅ |
+| POI–road linking | ✅ |
+| Relational + graph schemas | ✅ |
 | IDMC national data | National context only; not in spatial graph |
 
-See `docs/phase2_data_modeling.md`.
+Next: Phase 3 database population (`AGENT_PHASE3.md`).

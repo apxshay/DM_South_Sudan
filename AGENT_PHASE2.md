@@ -4,6 +4,8 @@ You are the **Phase 2 Data Modeling Agent** for the DM South Sudan project.
 
 Your job is to prepare clean, import-ready data models and an **augmented road network graph** that connects humanitarian points of interest to the driveable road network. Phase 3 will load your outputs into PostgreSQL and Neo4j — you do not build databases yet, but everything you produce must be ready for that step.
 
+**Current focus:** Phase 2 is **complete** (2026-06-24). Do not redo completed work unless outputs are missing or broken. Phase 3 agents load these artifacts into PostgreSQL and Neo4j — see [`AGENT_PHASE3.md`](../AGENT_PHASE3.md).
+
 The **Orchestrator Agent** (`AGENT.md`) maintains the global project view. After each important task, **write a report** in `docs/phase2_data_modeling.md` (see [Reporting & documentation](#reporting--documentation-required)). Keep outputs reproducible under `data/processed/`.
 
 ---
@@ -52,6 +54,22 @@ For the **graph database**, facilities and camps must be **first-class nodes** i
 
 **Use this graph as the road network.** Do not rebuild from raw HDX line shapefiles — an earlier vertex-snapping approach failed T-junction connectivity.
 
+### Task 2 — Health facility reconciliation ✅ (2026-06-24)
+
+- WHO 2025 and SS 2023 merged into one canonical dataset
+- Script: `scripts/merge_health_facilities.py` (helpers: `scripts/health_facility_admin.py`)
+- Progress log: `docs/phase2_data_modeling.md` (Task 2 sections)
+- Regenerate: `python scripts/merge_health_facilities.py` or `./scripts/bootstrap.sh --from merge`
+
+| Artifact | Path | Scale |
+|----------|------|-------|
+| Canonical facilities | `data/processed/health_facilities/health_facilities_canonical.gpkg` | 2,251 rows (2,017 with coordinates) |
+| Merge log | `data/processed/health_facilities/health_facilities_merge_log.csv` | Match decisions per row |
+| Summary | `data/processed/health_facilities/health_facilities_merge_summary.json` | Counts and merge rules applied |
+| State harmonization | `data/processed/health_facilities/health_facilities_state_harmonization_log.csv` | 24 corrections |
+
+**Use this file as the health facility source for Task 1.** Do not re-merge unless the canonical outputs are missing or you are explicitly fixing merge logic.
+
 ### Resolved decisions (inherit these)
 
 | Topic | Decision |
@@ -61,19 +79,31 @@ For the **graph database**, facilities and camps must be **first-class nodes** i
 | Displacement sites source | IOM DTM **Round 11** (77 sites, full GPS) |
 | IDMC national IDP data | Context only — no coordinates; not part of the spatial graph |
 
-### Still open (you must resolve in Phase 2)
+### Still open (resolved in Phase 2 ✅)
 
-| Topic | Your call |
-|-------|-----------|
-| Canonical health facility dataset | Merge WHO 2025 + SS 2023, or pick one as base — see Task 2 |
-| Connector edge semantics | Straight-line snap vs. future walking path — document choice |
-| Relational vs. graph schema details | Design both; same domain, natural for each paradigm |
+| Topic | Resolution |
+|-------|------------|
+| Connector edge semantics | Straight-line geodesic snap — see `docs/phase2_data_modeling.md` Task 1 |
+| Relational vs. graph schema details | `docs/phase2_relational_schema.md`, `docs/phase2_graph_schema.md` |
+| Benchmark queries | `docs/phase5_benchmark_queries.md` (Q1–Q5) |
+
+### Task 3 — Schema design & data enrichments ✅ (2026-06-24)
+
+- Admin dimensions, displacement sites canonical, logistical hubs, admission capacity
+- `routing_edges.csv` (66,533 directed edges), `facility_road_access.csv`
+- PostgreSQL DDL: `src/db/postgresql/schema.sql`
+- Neo4j constraints: `src/db/neo4j/constraints.cypher`
+- Scripts: `build_admin_dimensions.py`, `build_displacement_sites.py`, `build_reference_data.py`, `prepare_db_import_layers.py`
+
+See `docs/phase2_data_modeling.md` Task 3 section.
 
 ---
 
 ## Your two main tasks
 
-### Task 1 — Connect facilities and camps to the road network
+> **Start here:** Task 2 is done — proceed with **Task 1** below, then schema design deliverables.
+
+### Task 1 — Connect facilities and camps to the road network *(your primary task)*
 
 **Goal:** Every health facility and displacement site that participates in the graph must be a **node**, linked to the road network by a **connector segment** (edge) to the **nearest road intersection node**.
 
@@ -81,7 +111,7 @@ For the **graph database**, facilities and camps must be **first-class nodes** i
 
 | Entity | Source | Approx. count | Key columns |
 |--------|--------|---------------|-------------|
-| Health facilities | Task 2 output (canonical merged file) | ~1,900 nodes with valid coordinates | name, type, lat/lon, facility id |
+| Health facilities | `data/processed/health_facilities/health_facilities_canonical.gpkg` (Task 2 ✅) | 2,017 nodes with valid coordinates (2,251 total; 234 without coords excluded from graph) | `facility_id`, `facility_name`, `facility_type`, `latitude`, `longitude`, admin codes |
 | Displacement sites | `data/raw/displacement_sites/original/hdx_ssd-dtm-mobility-tracking-r11-site-assessment-dataset.xlsx` (sheet `MT11 SA`, skip metadata row) | 77 sites | `b01.location.ssid`, `b02.location.name`, `b10.gps.lon`, `b11.gps.lat`, `c02.idp.ind` |
 | Road nodes | `data/processed/roads_hotosm/road_nodes.gpkg` | 24,779 | `node_id`, `lon`, `lat`, `degree` |
 
@@ -131,7 +161,9 @@ Design relational equivalents in parallel (see Task 3 below).
 
 ---
 
-### Task 2 — Reconcile health facility discrepancies (2023 vs 2025)
+### Task 2 — Reconcile health facility discrepancies (2023 vs 2025) ✅ COMPLETE
+
+> **Status:** Completed 2026-06-24. Outputs exist under `data/processed/health_facilities/`. **Do not redo** unless files are missing or merge logic must be fixed. Use the canonical file as input to Task 1.
 
 **Goal:** Produce **one canonical health-facility dataset** suitable for both PostgreSQL and Neo4j import.
 
@@ -184,11 +216,23 @@ merge_status         # matched | ss_only | who_only | conflict
 
 Document every merge rule (e.g. match on normalized name + admin codes, prefer WHO coords when both present, prefer SS `Type`).
 
+#### Completed outputs (reference — already on disk)
+
+| File | Status |
+|------|--------|
+| `health_facilities_canonical.csv` / `.gpkg` | ✅ 2,251 rows |
+| `health_facilities_merge_log.csv` | ✅ |
+| `health_facilities_merge_summary.json` | ✅ |
+| `health_facilities_state_harmonization_log.csv` | ✅ |
+| `health_facilities_data_quality.md` | ⚠️ Referenced in docs but not generated — optional to add |
+
+**Reproduce (only if needed):** `python scripts/merge_health_facilities.py`
+
 ---
 
 ## Additional Phase 2 deliverables (schema design)
 
-Beyond Tasks 1 and 2, produce **data models** for Phase 3:
+After Task 1, produce **data models** for Phase 3:
 
 1. **Relational schema** — tables, PKs/FKs, geometry columns (PostGIS), ER diagram or DDL draft  
    Suggested path: `docs/phase2_relational_schema.md` + optional `src/db/postgresql/schema.sql`
@@ -234,7 +278,7 @@ After **each important task or milestone**, write a short report so the Orchestr
 
 | Trigger | Action |
 |---------|--------|
-| Task 2 complete (health facility merge) | Add or update report section + `health_facilities_data_quality.md` |
+| Task 2 complete (health facility merge) | ✅ Done — see `docs/phase2_data_modeling.md`; only report if you change merge logic |
 | Task 1 complete (network integration) | Add or update report section + `network_integration_summary.json` |
 | Schema design complete | Publish `phase2_relational_schema.md` and `phase2_graph_schema.md` |
 | Any non-obvious decision | Log it immediately in the running Phase 2 report |
@@ -293,10 +337,11 @@ When you finish a task, check whether **`README.md`**, **`AGENT.md`**, or **`dat
 1. Read Phase 1 and road topology docs before changing assumptions.
 2. Do **not** modify `output/south_sudan_data_validation.html` — create new artifacts if needed.
 3. Do **not** rebuild the OSMnx road graph unless `road_nodes.gpkg` / `road_edges.gpkg` are missing.
-4. Document decisions; flag uncertainties explicitly.
-5. Keep raw data read-only — write outputs to `data/processed/`.
-6. Prefer incremental, reproducible scripts over one-off notebook steps.
-7. **Write a report after each important task** — see [Reporting & documentation](#reporting--documentation-required) above.
+4. Do **not** re-run health facility merge (Task 2) unless `health_facilities_canonical.gpkg` is missing or merge logic is being fixed.
+5. Document decisions; flag uncertainties explicitly.
+6. Keep raw data read-only — write outputs to `data/processed/`.
+7. Prefer incremental, reproducible scripts over one-off notebook steps.
+8. **Write a report after each important task** — see [Reporting & documentation](#reporting--documentation-required) above.
 
 ---
 
@@ -304,15 +349,15 @@ When you finish a task, check whether **`README.md`**, **`AGENT.md`**, or **`dat
 
 Phase 2 is complete when:
 
-- [ ] One canonical health facility table exists with documented merge rules
-- [ ] ~1,900 facilities (with valid coordinates) each have a nearest road node and connector edge
-- [ ] ~77 displacement sites each have a nearest road node and connector edge
-- [ ] Augmented edge/node layers are saved and summarized (`network_integration_summary.json`)
-- [ ] Relational and graph schemas are documented and aligned with the augmented network
-- [ ] **`docs/phase2_data_modeling.md`** exists with dated sections for every major task
-- [ ] Task-specific quality reports exist where required (health merge, network integration)
+- [x] One canonical health facility table exists with documented merge rules (Task 2 ✅)
+- [x] ~2,017 facilities (with valid coordinates) each have a nearest road node and connector edge
+- [x] ~77 displacement sites each have a nearest road node and connector edge
+- [x] Augmented edge/node layers are saved and summarized (`network_integration_summary.json`)
+- [x] Relational and graph schemas are documented and aligned with the augmented network
+- [x] **`docs/phase2_data_modeling.md`** exists with dated sections for every major task
+- [x] Benchmark query spec published (`docs/phase5_benchmark_queries.md`)
 
-Phase 3 agents will use your processed files and schemas to populate PostgreSQL and Neo4j.
+Phase 3 agents will use your processed files and schemas to populate PostgreSQL and Neo4j. See **`AGENT_PHASE3.md`**.
 
 ---
 
@@ -322,10 +367,19 @@ Phase 3 agents will use your processed files and schemas to populate PostgreSQL 
 data/raw/health_facilities/original/          # Source Excel files
 data/raw/displacement_sites/original/         # IOM DTM Round 11
 data/processed/roads_hotosm/                  # Road nodes & edges (OSMnx)
-data/processed/health_facilities/             # Your Task 2 outputs (create)
-data/processed/network/                       # Your Task 1 outputs (create)
-docs/phase1_data_understanding.md             # Dataset profiles
-docs/road_network_topology.md                 # Road graph methodology
-docs/phase2_data_modeling.md                  # Your running Phase 2 log (create & append)
-AGENT.md                                      # Orchestrator instructions
+data/processed/health_facilities/             # Canonical merge + capacity
+data/processed/admin/                         # Admin dimension tables
+data/processed/displacement_sites/            # Canonical DTM R11 sites
+data/processed/reference/                     # Logistical hubs
+data/processed/network/                       # POI nodes, connectors, routing_edges
+src/db/postgresql/schema.sql                  # PostgreSQL DDL
+src/db/neo4j/constraints.cypher               # Neo4j constraints
+docs/phase1_data_understanding.md
+docs/road_network_topology.md
+docs/phase2_data_modeling.md
+docs/phase2_relational_schema.md
+docs/phase2_graph_schema.md
+docs/phase5_benchmark_queries.md
+AGENT_PHASE3.md                               # Next phase instructions
+AGENT.md
 ```

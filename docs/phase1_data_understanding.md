@@ -538,12 +538,15 @@ Validation map: `output/south_sudan_road_topology_validation.html`
 
 ---
 
-## 11. Phase 2 — Data Modeling (planned)
+## 11. Phase 2 — Data Modeling ✅ (complete)
 
-Building on the road graph above, Phase 2 will:
+Phase 2 deliverables (2026-06-24):
 
-1. **Reconcile health facilities** — merge WHO 2025 (1,988 rows) and SS 2023 (1,513 rows) into one canonical dataset; resolve schema differences, duplicate codes, and missing coordinates (see Section 4).
-2. **Integrate POIs into the network** — snap ~1,900 health facilities and 77 IOM DTM Round 11 displacement sites to the nearest road intersection node; add connector edges so facilities and camps participate in pathfinding.
-3. **Design schemas** — relational (PostgreSQL/PostGIS) and graph (Neo4j) models for the augmented network.
+1. **Health facility reconciliation** — 2,251 canonical facilities (`merge_health_facilities.py`)
+2. **Network integration** — 2,094 POI connectors to OSMnx road graph (`integrate_network.py`)
+3. **Schema design** — PostgreSQL + Neo4j models; benchmark queries Q1–Q5
+4. **DB import layers** — `routing_edges.csv`, admin dimensions, logistical hubs
 
-Progress: `docs/phase2_data_modeling.md`
+Progress: `docs/phase2_data_modeling.md`  
+Schemas: `docs/phase2_relational_schema.md`, `docs/phase2_graph_schema.md`  
+Next: **Phase 3** — database population (`AGENT_PHASE3.md`)

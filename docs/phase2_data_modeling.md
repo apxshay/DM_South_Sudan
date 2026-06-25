@@ -1,7 +1,7 @@
 # Phase 2 — Data Modeling
 
 **Project:** South Sudan RDBMS vs Graph DB comparison  
-**Status:** In progress (Task 2 complete)  
+**Status:** Complete  
 **Last updated:** 2026-06-24
 
 ---
@@ -17,9 +17,10 @@ Phase 2 prepares import-ready datasets and schemas for PostgreSQL and Neo4j. Pha
 | Step | Description | Status |
 |------|-------------|--------|
 | Health facility reconciliation | Merge WHO 2025 and SS 2023 into one canonical table | Complete |
-| Network integration | Connect facilities (~1,900) and displacement sites (77) to road graph via connector edges | Pending |
-| Relational schema | PostgreSQL/PostGIS tables, keys, geometry columns | Pending |
-| Graph schema | Neo4j node labels, relationship types, properties | Pending |
+| Network integration | Connect facilities (~1,900) and displacement sites (77) to road graph via connector edges | Complete |
+| Relational schema | PostgreSQL/PostGIS tables, keys, geometry columns | Complete |
+| Graph schema | Neo4j node labels, relationship types, properties | Complete |
+| Benchmark query spec | Canonical Q1–Q5 templates for Phase 5 | Complete |
 
 ---
 
@@ -68,8 +69,76 @@ Phase 2 prepares import-ready datasets and schemas for PostgreSQL and Neo4j. Pha
 
 ---
 
+### 2026-06-24 — Task 1: Network integration
+
+**Summary:** Connected 2,017 health facilities and 77 IOM DTM Round 11 displacement sites to the OSMnx road graph via straight-line connector edges. Each POI is a first-class node snapped to the nearest road intersection node, with junction preference when distance is comparable. All 2,094 georeferenced POIs received a connector; none were left disconnected.
+
+**Outputs:**
+- `data/processed/network/poi_nodes.gpkg` / `.csv` (2,094 POI nodes)
+- `data/processed/network/connector_edges.gpkg` / `.csv` (2,094 connectors)
+- `data/processed/network/road_graph_augmented_edges.gpkg` / `.csv` (64,439 edges = 62,345 road + 2,094 connectors)
+- `data/processed/network/network_integration_summary.json`
+- `data/processed/network/poi_snap_review.csv` (666 POIs with snap distance > 5 km)
+- `output/south_sudan_augmented_network_validation.html`
+
+**Decisions:**
+- **Connector semantics:** straight-line geodesic snap (not a surveyed walking path); suitable for routing access links in Phase 3.
+- **Distance metric:** haversine geodesic (WGS84) for both nearest-node search and `snap_distance_m`.
+- **Nearest-node search:** scikit-learn `BallTree` with haversine metric, *k*=25 candidates per POI.
+- **Junction preference:** among nodes within `nearest_dist × 1.10 + 250 m`, prefer the closest node with `degree ≥ 3` (434 POIs used a junction over the absolute nearest node).
+- **POI node IDs:** reuse canonical `SSD-HF-*` facility IDs; displacement sites use `SSD-DS-{ssid}` (stable, distinct from OSM `node_id`).
+- **Review threshold:** flag POIs with `snap_distance_m > 5,000` for manual review.
+
+**Issues:** 666 POIs (31.8%) snap farther than 5 km from the nearest road node — median snap is 1.5 km but the mean is 10.5 km due to sparse OSM road coverage in remote areas. Worst case: ~183 km (health facility). These remain connected for graph completeness but should be treated cautiously in reachability analysis. 234 health facilities without coordinates are excluded from the spatial graph (retained in canonical table for PostgreSQL).
+
+**Reproduce:**
+```bash
+python scripts/integrate_network.py
+python scripts/visualize_augmented_network.py
+```
+
+---
+
+### 2026-06-24 — Task 3: Schema design, data enrichments, benchmark queries
+
+**Summary:** Validated five benchmark queries (Q1–Q5) against processed datasets; enriched admin dimensions, displacement sites, logistical hubs, and connector capacities; produced aligned PostgreSQL/PostGIS and Neo4j schemas plus canonical query templates for Phase 5.
+
+**Outputs:**
+- `data/processed/admin/admin_states.csv` (11), `admin_counties.csv` (79), `admin_payams.csv` (512)
+- `data/processed/displacement_sites/displacement_sites_canonical.csv` / `.gpkg` (77)
+- `data/processed/reference/logistical_hubs.csv` (5 referral hospitals)
+- `data/processed/health_facilities/health_facilities_with_capacity.csv` / `.gpkg` (2,251 + `admission_capacity`)
+- `data/processed/network/routing_edges.csv` / `graph_edges_directed.csv` (66,533 directed edges)
+- `data/processed/network/facility_road_access.csv` (2,017)
+- `docs/phase2_relational_schema.md`, `src/db/postgresql/schema.sql`
+- `docs/phase2_graph_schema.md`, `src/db/neo4j/constraints.cypher`
+- `docs/phase5_benchmark_queries.md`
+
+**Decisions:**
+- **Query suite:** keep all five user queries with revisions (directed edges, correct labels, hub = referral hospital).
+- **Q4:** per-state POI/IDP stats; national primary+secondary road km only (no state polygons on roads).
+- **Q5 capacity:** unlimited `ROAD_SEGMENT`; synthetic capacity on `CONNECTOR` only (camp=`idp_individuals`, hospital=`admission_capacity`); added `connector_reverse` edges for max-flow into hospitals.
+- **Admission defaults:** Hospital=250, PHCC=100, PHCU=50.
+- **Routing layer:** unified `routing_edges` with `start_node_kind` / `end_node_kind` (`road`|`poi`).
+
+**Issues:** Q5 max-flow not native SQL (application-layer NetworkX on PostgreSQL); Neo4j requires GDS plugin. 651 `unknown` facility types excluded from Q1/Q2 routing.
+
+**Reproduce:**
+```bash
+python scripts/build_admin_dimensions.py
+python scripts/build_displacement_sites.py
+python scripts/build_reference_data.py
+python scripts/prepare_db_import_layers.py
+```
+
+---
+
 ## References
 
 - `docs/phase1_data_understanding.md` — Section 4 (health facilities)
 - `docs/road_network_topology.md` — processed road graph (24,779 nodes, 62,345 edges)
+- `docs/phase2_relational_schema.md` — PostgreSQL/PostGIS DDL
+- `docs/phase2_graph_schema.md` — Neo4j model
+- `docs/phase5_benchmark_queries.md` — Q1–Q5 templates
+- `AGENT_PHASE3.md` — Phase 3 database population instructions
 - `data/processed/roads_hotosm/` — road nodes and edges inputs

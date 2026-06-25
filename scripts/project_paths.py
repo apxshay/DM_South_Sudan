@@ -10,6 +10,9 @@ PROCESSED = ROOT / "data" / "processed"
 PROCESSED_ROADS_HOTOSM = PROCESSED / "roads_hotosm"
 PROCESSED_HEALTH_FACILITIES = PROCESSED / "health_facilities"
 PROCESSED_NETWORK = PROCESSED / "network"
+PROCESSED_ADMIN = PROCESSED / "admin"
+PROCESSED_DISPLACEMENT_SITES = PROCESSED / "displacement_sites"
+PROCESSED_REFERENCE = PROCESSED / "reference"
 ROADS_HOTOSM_FILTERED = RAW / "roads_hotosm" / "filtered" / "roads_lines_filtered.gpkg"
 
 DATA_DIRS = [
@@ -23,6 +26,9 @@ DATA_DIRS = [
     PROCESSED_ROADS_HOTOSM,
     PROCESSED_HEALTH_FACILITIES,
     PROCESSED_NETWORK,
+    PROCESSED_ADMIN,
+    PROCESSED_DISPLACEMENT_SITES,
+    PROCESSED_REFERENCE,
     ROOT / "data" / "interim" / "osmnx",
     ROOT / "data" / "interim",
     ROOT / "output",

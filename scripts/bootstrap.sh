@@ -22,7 +22,7 @@ Usage: ./scripts/bootstrap.sh [OPTIONS]
 
 Options:
   --skip-download   Skip HDX raw dataset download (use existing data/raw/)
-  --from STEP       Start at STEP: explore | validate | roads | topology | merge
+  --from STEP       Start at STEP: explore | validate | roads | topology | merge | network
   -h, --help        Show this help
 
 Requires a configured environment:
@@ -69,19 +69,22 @@ should_run() {
   case "$FROM_STEP" in
     all) return 0 ;;
     explore)
-      [[ "$step" =~ ^(explore|validate|roads|topology|merge)$ ]]
+      [[ "$step" =~ ^(explore|validate|roads|topology|merge|network)$ ]]
       ;;
     validate)
-      [[ "$step" =~ ^(validate|roads|topology|merge)$ ]]
+      [[ "$step" =~ ^(validate|roads|topology|merge|network)$ ]]
       ;;
     roads)
-      [[ "$step" =~ ^(roads|topology|merge)$ ]]
+      [[ "$step" =~ ^(roads|topology|merge|network)$ ]]
       ;;
     topology)
-      [[ "$step" =~ ^(topology|merge)$ ]]
+      [[ "$step" =~ ^(topology|merge|network)$ ]]
       ;;
     merge)
-      [[ "$step" == "merge" ]]
+      [[ "$step" =~ ^(merge|network)$ ]]
+      ;;
+    network)
+      [[ "$step" == "network" ]]
       ;;
     *)
       echo "Unknown --from step: $FROM_STEP" >&2
@@ -120,16 +123,26 @@ if should_run merge; then
   run_step "Phase 2 — health facility merge" "$ROOT/scripts/merge_health_facilities.py"
 fi
 
+if should_run network; then
+  run_step "Phase 2 — network integration" "$ROOT/scripts/integrate_network.py"
+  run_step "Augmented network validation map" "$ROOT/scripts/visualize_augmented_network.py"
+  run_step "Phase 2 — admin dimensions" "$ROOT/scripts/build_admin_dimensions.py"
+  run_step "Phase 2 — displacement sites" "$ROOT/scripts/build_displacement_sites.py"
+  run_step "Phase 2 — reference data" "$ROOT/scripts/build_reference_data.py"
+  run_step "Phase 2 — DB import layers" "$ROOT/scripts/prepare_db_import_layers.py"
+fi
+
 cat <<EOF
 
 Bootstrap complete.
 
 Generated artifacts (local only, not in git):
   data/raw/          raw HDX + Geofabrik downloads
-  data/processed/    road graph, canonical health facilities
+  data/processed/    road graph, canonical health facilities, augmented network
   output/            HTML validation maps
 
 Open in a browser:
   output/south_sudan_data_validation.html
   output/south_sudan_road_topology_validation.html
+  output/south_sudan_augmented_network_validation.html
 EOF

@@ -1,7 +1,7 @@
 {
   "roads": {
     "source": "HDX \u2014 South Sudan: Road Network",
-    "path": "data\\raw\\roads\\SSD_road_network\\SSD_Road_network.shp",
+    "path": "data/raw/roads/SSD_road_network/SSD_Road_network.shp",
     "format": "ESRI Shapefile (EPSG:4326)",
     "row_count": 976,
     "geometry_types": {
@@ -95,8 +95,8 @@
   "roads_hotosm": {
     "source": "HDX \u2014 Roads of South Sudan (HOT OSM)",
     "source_url": "https://data.humdata.org/dataset/hotosm_ssd_roads",
-    "path": "data\\raw\\roads_hotosm\\filtered\\roads_lines_filtered.gpkg",
-    "original_path": "data\\raw\\roads_hotosm\\roads_lines.shp",
+    "path": "data/raw/roads_hotosm/filtered/roads_lines_filtered.gpkg",
+    "original_path": "data/raw/roads_hotosm/roads_lines.shp",
     "format": "GeoPackage (EPSG:4326), filtered from OSM lines",
     "filter": {
       "column": "highway",
