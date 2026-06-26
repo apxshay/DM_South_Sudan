@@ -1,4 +1,4 @@
-# Local PostgreSQL/PostGIS + Neo4j for Phase 3 database population.
+# Local PostgreSQL/PostGIS + pgRouting + Neo4j for Phase 3+ database work.
 # Recommended benchmark host: Windows 10 + AMD Ryzen 5 (native linux/amd64 for both images).
 #
 # Usage:
@@ -12,7 +12,7 @@
 
 services:
   postgis:
-    image: postgis/postgis:16-3.4
+    image: pgrouting/pgrouting:16-3.5-4.0
     container_name: dm-south-sudan-postgis
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-dm_ssd}

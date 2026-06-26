@@ -18,7 +18,7 @@
 
 Official images (pinned in `docker-compose.yml`):
 
-- **PostGIS** `postgis/postgis:16-3.4` — **`linux/amd64` only** ([docker-postgis](https://github.com/postgis/docker-postgis))
+- **PostGIS** `pgrouting/pgrouting:16-3.5-4.0` — **`linux/amd64` only** (PostGIS + pgRouting 4.0.1)
 - **Neo4j** `neo4j:5.26-community` — `linux/amd64` and `linux/arm64/v8` ([Docker Hub](https://hub.docker.com/_/neo4j))
 
 ### Platform-specific configuration
@@ -46,8 +46,9 @@ Official images (pinned in `docker-compose.yml`):
 
 | Component | Version | Notes |
 |-----------|---------|-------|
-| PostgreSQL | 16.4 | Image `postgis/postgis:16-3.4` |
-| PostGIS | 3.4 | Enabled in `schema.sql` |
+| PostgreSQL | 16.x | Image `pgrouting/pgrouting:16-3.5-4.0` |
+| PostGIS | 3.4+ | Enabled in `schema.sql` |
+| pgRouting | 4.0.1 | `CREATE EXTENSION pgrouting` in `schema.sql` |
 | Neo4j | 5.26.x Community | Image `neo4j:5.26-community` |
 | APOC | bundled | `NEO4J_PLUGINS` in compose |
 | GDS | 2.13.x | `RETURN gds.version()` in Neo4j |
@@ -133,6 +134,24 @@ Expect `x86_64` on Windows/Ryzen.
 
 ---
 
+## pgRouting image upgrade (Phase 4, 2026-06-26)
+
+Phase 4 routing requires **pgRouting**. The Docker service now uses **`pgrouting/pgrouting:16-3.5-4.0`** instead of `postgis/postgis:16-3.4`.
+
+### Fresh clone
+
+Follow [`README.md`](../README.md) Steps 4–5 — extension is created automatically by `schema.sql`.
+
+### Existing populated database
+
+1. `docker compose pull postgis && docker compose up -d`
+2. `CREATE EXTENSION IF NOT EXISTS pgrouting;` (data volume preserved)
+3. Verify: `SELECT extname, extversion FROM pg_extension WHERE extname = 'pgrouting';`
+
+Full narrative: [`phase4_pgrouting_adoption_and_routing_queries.md`](phase4_pgrouting_adoption_and_routing_queries.md) §3.
+
+---
+
 ## Issues encountered and fixes
 
 | # | Issue | Platform | Fix / workaround |
@@ -144,6 +163,7 @@ Expect `x86_64` on Windows/Ryzen.
 | 5 | `conda` / `docker` not on PATH | Windows | Miniforge Prompt or add Scripts + Docker `resources\bin` to PATH |
 | 6 | Docker Desktop not installed | Windows | Install Docker Desktop; start before `docker compose up` |
 | 7 | `bootstrap.ps1` fails at Phase 2 (`scripts\health` not found) | Windows | Unicode em dash in step labels broke `conda run`; fixed in `bootstrap.ps1` (ASCII hyphens). Resume: `.\scripts\bootstrap.ps1 -SkipDownload -From network` |
+| 8 | pgRouting missing after Phase 4 image upgrade | All | `CREATE EXTENSION IF NOT EXISTS pgrouting;` or `populate_databases.py --reset` |
 
 ---
 
@@ -154,4 +174,5 @@ Expect `x86_64` on Windows/Ryzen.
 - [`AGENT_PHASE3.md`](../AGENT_PHASE3.md) — Phase 3 agent instructions
 - [`docs/phase2_relational_schema.md`](phase2_relational_schema.md)
 - [`docs/phase2_graph_schema.md`](phase2_graph_schema.md)
-- [`docs/phase5_benchmark_queries.md`](phase5_benchmark_queries.md)
+- [`phase4_pgrouting_adoption_and_routing_queries.md`](phase4_pgrouting_adoption_and_routing_queries.md)
+- [`phase5_benchmark_queries.md`](phase5_benchmark_queries.md)

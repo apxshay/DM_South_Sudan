@@ -52,6 +52,26 @@ Five queries designed to compare PostgreSQL and Neo4j across graph-native worklo
 
 ---
 
+## Dual-track PostgreSQL routing (Q1–Q3)
+
+Phase 4 implements **two** PostgreSQL routing stacks plus Neo4j GDS:
+
+| Track | Files | Role in thesis |
+|-------|-------|----------------|
+| **PG-CTE** | `q1_nearest_hospital.sql`, `q2_state_camps_to_hospital.sql`, `q3_hub_reachability.sql` | Secondary — pure SQL without extensions |
+| **PG-pgRouting** | `q1_nearest_hospital_pgrouting.sql`, `q2_*_pgrouting.sql`, `q3_*_pgrouting.sql` | **Primary PostgreSQL** — fair vs Neo4j GDS |
+| **Neo4j-GDS** | `q1_nearest_hospital.cypher`, `q2_*.cypher`, `q3_*.cypher` | **Primary graph** — distance-weighted Dijkstra |
+
+**Phase 5 headline comparison:** median latency **PG-pgRouting vs Neo4j-GDS**.  
+**Supporting analysis:** PG-CTE vs PG-pgRouting (cost of omitting pgRouting).
+
+Docker image: `pgrouting/pgrouting:16-3.5-4.0` with `CREATE EXTENSION pgrouting` in [`schema.sql`](../src/db/postgresql/schema.sql).
+
+Benchmark harness: `python scripts/benchmark_routing_queries.py --runs 5 --warmup 1`  
+Output: `output/routing_benchmark_results.json`
+
+---
+
 ## Query 1 — Nearest Hospital/PHCC from one camp
 
 **Use case:** Cholera outbreak at a refugee camp — find shortest road path (meters) to the nearest Hospital or PHCC.
@@ -130,7 +150,7 @@ best AS (
 SELECT * FROM best;
 ```
 
-**Note:** Production PostgreSQL may use pgRouting (`pgr_dijkstra`); this benchmark uses naive recursive CTE to demonstrate SQL graph limitations.
+**Note:** Production PostgreSQL uses **pgRouting** (`pgr_dijkstraCost`) in Phase 4 artifacts (`*_pgrouting.sql`). The recursive CTE below remains as the **PG-CTE secondary baseline** to demonstrate SQL graph limitations without extensions.
 
 ---
 
@@ -315,6 +335,8 @@ Max-flow is **not** native SQL. Implement via application layer (e.g. NetworkX `
 - [`phase2_relational_schema.md`](phase2_relational_schema.md)
 - [`phase2_graph_schema.md`](phase2_graph_schema.md)
 - [`phase2_data_modeling.md`](phase2_data_modeling.md)
+- [`phase4_pgrouting_adoption_and_routing_queries.md`](phase4_pgrouting_adoption_and_routing_queries.md)
+- [`phase4_query_implementation.md`](phase4_query_implementation.md)
 - [`README.md`](../README.md)
 - [`phase3_database_population.md`](phase3_database_population.md)
 - [`road_network_topology.md`](road_network_topology.md)

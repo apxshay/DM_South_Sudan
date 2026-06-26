@@ -20,7 +20,10 @@ Master's degree project comparing **PostgreSQL (RDBMS)** and **Neo4j (graph DB)*
 | [`docs/phase2_relational_schema.md`](docs/phase2_relational_schema.md) | PostgreSQL/PostGIS schema |
 | [`docs/phase2_graph_schema.md`](docs/phase2_graph_schema.md) | Neo4j schema |
 | [`docs/phase3_database_population.md`](docs/phase3_database_population.md) | Phase 3 validation counts, platform notes, issues log |
-| [`docs/phase5_benchmark_queries.md`](docs/phase5_benchmark_queries.md) | Q1–Q5 benchmark templates (Phase 5) |
+| [`docs/phase4_pgrouting_adoption_and_routing_queries.md`](docs/phase4_pgrouting_adoption_and_routing_queries.md) | **Phase 4 report:** pgRouting, dual-track queries, pilot benchmarks |
+| [`docs/phase4_query_implementation.md`](docs/phase4_query_implementation.md) | Phase 4 technical progress log (discovery queries) |
+| [`docs/phase5_benchmark_queries.md`](docs/phase5_benchmark_queries.md) | Q1–Q5 query spec; dual-track benchmark matrix |
+| [`AGENT_PHASE4.md`](AGENT_PHASE4.md) | Phase 4 agent instructions (query implementation) |
 | [`AGENT.md`](AGENT.md) | Orchestrator status and project overview |
 
 Raw and processed data are **not in git** (see `.gitignore`). After cloning, follow the pipeline below once per machine.
@@ -74,7 +77,9 @@ Both platforms run the **same Python scripts and Docker images**. Differences ma
 
 ---
 
-## Full pipeline (Phase 1 → Phase 3)
+## Full pipeline (Phase 1 → Phase 4)
+
+**pgRouting note:** The PostGIS Docker image (`pgrouting/pgrouting:16-3.5-4.0`) includes pgRouting. You do **not** install it separately. Step 4 starts the image; Step 5 enables the extension via `schema.sql`. See [`docs/phase4_pgrouting_adoption_and_routing_queries.md`](docs/phase4_pgrouting_adoption_and_routing_queries.md) §3.
 
 ### Step 0 — Clone
 
@@ -141,18 +146,23 @@ Defaults: PostGIS `127.0.0.1:5432`, Neo4j `bolt://127.0.0.1:7687`, password `dm_
 Ensure Docker Desktop is running, then:
 
 ```powershell
+docker compose pull
 docker compose up -d
 docker compose ps    # wait until both containers are healthy
 ```
 
 ```bash
+docker compose pull
 docker compose up -d
 docker compose ps
 ```
 
 Neo4j Browser: http://localhost:7474 (user `neo4j`, password from `.env`).
 
-Images: `postgis/postgis:16-3.4`, `neo4j:5.26-community` (APOC + GDS).
+**Images (pinned in `docker-compose.yml`):**
+
+- **PostgreSQL + PostGIS + pgRouting:** `pgrouting/pgrouting:16-3.5-4.0`
+- **Neo4j:** `neo4j:5.26-community` (APOC + GDS)
 
 ### Step 5 — Populate databases
 
@@ -185,7 +195,10 @@ Quick count checks (password from `.env`, default `dm_ssd_dev`):
 docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT COUNT(*) FROM health_facilities;"
 docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT COUNT(*) FROM road_edges;"
 docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT COUNT(*) FROM routing_edges;"
+docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT extname, extversion FROM pg_extension WHERE extname IN ('postgis', 'pgrouting');"
 ```
+
+Expect extensions: `postgis` (3.x), `pgrouting` (4.0.1).
 
 **Neo4j**
 
@@ -208,6 +221,28 @@ Full expected counts and Q1 smoke prerequisites: [`docs/phase3_database_populati
 
 **Using the databases day-to-day** (connect, run queries, GUI tools): [`docs/database_usage_guide.md`](docs/database_usage_guide.md).
 
+### Step 7 — Phase 4 routing queries (Q1–Q3)
+
+After Steps 1–6, run implemented queries from `src/queries/`. The repo is **not mounted** inside Docker — pipe files via stdin (see [`docs/database_usage_guide.md`](docs/database_usage_guide.md) §11).
+
+**Quick Q1 smoke (pgRouting — primary PostgreSQL track):**
+
+```powershell
+Get-Content src/queries/postgresql/q1_nearest_hospital_pgrouting.sql |
+  docker exec -i dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan `
+    -v camp_id=SSD-DS-SS0101_0005
+```
+
+Expect **Gumbo PHCC**, **5191.26 m**. Full Phase 4 report: [`docs/phase4_pgrouting_adoption_and_routing_queries.md`](docs/phase4_pgrouting_adoption_and_routing_queries.md).
+
+**Optional pilot benchmark** (Windows amd64 only):
+
+```powershell
+python scripts/benchmark_routing_queries.py --runs 5 --warmup 1
+```
+
+Output: `output/routing_benchmark_results.json`. Use `--skip-slow-cte` to skip impractically slow Q2/Q3 recursive-CTE baselines.
+
 ---
 
 ## Resume where you left off
@@ -221,6 +256,8 @@ Bootstrap scripts are idempotent. Generated files live under `data/raw/`, `data/
 | Re-run Phase 2 merge only | `.\scripts\bootstrap.ps1 -From merge` | `./scripts/bootstrap.sh --from merge` |
 | Re-run Phase 2 network + import layers | `.\scripts\bootstrap.ps1 -From network` | `./scripts/bootstrap.sh --from network` |
 | Phase 3 only (processed data exists) | `docker compose up -d` then `python scripts\populate_databases.py --reset` | same with forward slashes |
+| Phase 4 queries only (DBs populated) | `docker compose up -d` then run queries from `src/queries/` | same |
+| Upgrade to pgRouting image (keep data) | `docker compose pull` → `up -d` → `CREATE EXTENSION IF NOT EXISTS pgrouting;` | see Phase 4 doc §3.3 |
 | Single script | `python scripts\merge_health_facilities.py` (env active) | `python scripts/merge_health_facilities.py` |
 
 **Data pipeline only (skip Docker):** run Step 1 + Step 2 above; skip Steps 3–5.
@@ -238,6 +275,8 @@ Bootstrap scripts are idempotent. Generated files live under `data/raw/`, `data/
 | `role "dm_ssd" does not exist` | Wrong Postgres instance — check `.env` port vs `docker compose ps` | Same |
 | `data/processed/... not found` | Run bootstrap (Step 2) | Same |
 | Neo4j reset on first load | Wait for `healthy`; retry after ~2 min | Same |
+| `function pgr_dijkstraCost does not exist` | pgRouting extension missing | `CREATE EXTENSION IF NOT EXISTS pgrouting;` or re-run Step 5 populate |
+| Q2/Q3 PG-CTE query hangs | Expected — recursive CTE at national scale | Use `*_pgrouting.sql` files instead |
 | WSL 2 missing (Windows) | Admin PowerShell: `wsl --install`; reboot | — |
 
 More detail: [`docs/phase3_database_population.md`](docs/phase3_database_population.md) (issues log and validation reference).
@@ -252,7 +291,8 @@ More detail: [`docs/phase3_database_population.md`](docs/phase3_database_populat
 | Road network topology | Complete (24,779 nodes, 62,345 edges) | [`docs/road_network_topology.md`](docs/road_network_topology.md) |
 | Phase 2 — Data modeling | Complete | [`docs/phase2_data_modeling.md`](docs/phase2_data_modeling.md) |
 | Phase 3 — Database population | Complete | [`docs/phase3_database_population.md`](docs/phase3_database_population.md) |
-| Phase 5 — Benchmarking | **Next** | [`docs/phase5_benchmark_queries.md`](docs/phase5_benchmark_queries.md) |
+| Phase 4 — Query implementation | **In progress** (Q1–Q3 done) | [`docs/phase4_pgrouting_adoption_and_routing_queries.md`](docs/phase4_pgrouting_adoption_and_routing_queries.md), [`docs/phase4_query_implementation.md`](docs/phase4_query_implementation.md) |
+| Phase 5 — Benchmarking | After Phase 4 complete | [`docs/phase5_benchmark_queries.md`](docs/phase5_benchmark_queries.md) |
 
 ---
 
@@ -268,6 +308,8 @@ More detail: [`docs/phase3_database_population.md`](docs/phase3_database_populat
 | Graph direction | Preserve directed arcs and `oneway`; import `CONNECTOR_REVERSE` for Q5 |
 | Facilities without coordinates | All 2,251 in PostgreSQL; 2,017 in Neo4j spatial graph |
 | Benchmark host | Windows amd64 — both DB containers native `x86_64` |
+| PostgreSQL routing (Q1–Q3) | **Dual-track:** PG-pgRouting (primary) + PG-CTE (secondary baseline); Neo4j GDS (primary graph) |
+| Docker PostGIS image | `pgrouting/pgrouting:16-3.5-4.0` — PostGIS + pgRouting 4.0 in container |
 
 ---
 
@@ -291,19 +333,22 @@ See [`data/raw/README.md`](data/raw/README.md) and [`data/processed/README.md`](
 ```
 ├── README.md                 # Main setup guide (this file)
 ├── AGENT.md / AGENT_PHASE*.md
-├── docker-compose.yml        # PostGIS + Neo4j
+├── docker-compose.yml        # pgRouting/PostGIS + Neo4j
 ├── .env.example              # Copy to .env (gitignored)
 ├── environment.yml           # Conda environment (all platforms)
 ├── data/raw/                 # HDX + Geofabrik (not in git)
 ├── data/processed/           # Graph, facilities, network (not in git)
 ├── docs/                     # Phase reports, schemas, database usage guide
 │   ├── database_usage_guide.md
-│   ├── phase1_data_understanding.md
 │   ├── phase3_database_population.md
+│   ├── phase4_pgrouting_adoption_and_routing_queries.md
+│   ├── phase4_query_implementation.md
 │   └── phase5_benchmark_queries.md
-├── output/                   # HTML validation maps (not in git)
-├── scripts/                  # setup, bootstrap, ETL, loaders
-└── src/db/                   # schema.sql, constraints.cypher, db_config.py
+├── output/                   # HTML maps, routing_benchmark_results.json
+├── scripts/                  # setup, bootstrap, ETL, loaders, benchmark_routing_queries.py
+└── src/
+    ├── db/                   # schema.sql (incl. pgrouting), constraints.cypher
+    └── queries/              # Phase 4 SQL/Cypher (postgresql/, neo4j/)
 ```
 
 ---

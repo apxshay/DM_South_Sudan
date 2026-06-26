@@ -4,7 +4,7 @@
 **Date:** 2026-06-24  
 **Status:** Complete — loaded in Phase 3
 
-Executable DDL: [`src/db/postgresql/schema.sql`](../src/db/postgresql/schema.sql)  
+Executable DDL: [`src/db/postgresql/schema.sql`](../src/db/postgresql/schema.sql) — enables **PostGIS** and **pgRouting** (`CREATE EXTENSION postgis; CREATE EXTENSION pgrouting;`, Phase 4).  
 **Apply and load:** [`README.md`](../README.md) Steps 4–5, or `scripts/load_postgresql.py --reset`
 
 ---

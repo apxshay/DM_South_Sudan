@@ -1,6 +1,6 @@
 # Phase 3 Agent — Database Population
 
-**Status:** COMPLETE (2026-06-25). Report: `docs/phase3_database_population.md`. **Next:** Phase 5 benchmarking on Windows 10 + AMD Ryzen 5 (native `amd64`).
+**Status:** COMPLETE (2026-06-25). Report: `docs/phase3_database_population.md`. **Next:** Phase 4 query implementation — see `AGENT_PHASE4.md`.
 
 You are the **Phase 3 Database Population Agent** for the DM South Sudan project.
 
@@ -84,7 +84,7 @@ Phase 5 will benchmark **five queries** (shortest path, multi-source routing, re
 3. Store connection settings in a **gitignored** config (`.env` from `.env.example`) — never commit credentials.
 4. Document versions (PostgreSQL, PostGIS, Neo4j, GDS) in `docs/phase3_database_population.md`.
 
-**Platform:** Use **Windows 10 + AMD Ryzen 5** with Docker Desktop (WSL 2) for native `linux/amd64` on both `postgis/postgis` and `neo4j`. macOS Apple Silicon runs PostGIS under emulation — suitable for development, not fair benchmark timings.
+**Platform:** Use **Windows 10 + AMD Ryzen 5** with Docker Desktop (WSL 2) for native `linux/amd64` on both `pgrouting/pgrouting` and `neo4j`. macOS Apple Silicon runs PostGIS/pgRouting under emulation — suitable for development, not fair benchmark timings.
 
 Suggested layout (implemented):
 

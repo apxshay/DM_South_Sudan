@@ -1,9 +1,9 @@
 # Using the Databases — Step-by-Step Guide
 
 **Project:** South Sudan RDBMS vs Graph DB comparison  
-**Audience:** You, running PostgreSQL/PostGIS and Neo4j locally after Phase 3 setup
+**Audience:** You, running PostgreSQL/PostGIS/pgRouting and Neo4j locally after Phase 3 setup
 
-This guide explains **what to open**, **how to connect**, and **how to run queries** on both databases. For first-time installation (conda, bootstrap, populate), start with `[README.md](../README.md)`.
+This guide explains **what to open**, **how to connect**, and **how to run queries** on both databases. For first-time installation (conda, bootstrap, Docker with **pgRouting**, populate), start with [`README.md`](../README.md) Steps 0–7.
 
 ---
 
@@ -73,6 +73,14 @@ docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT C
 ```
 
 Expect **2251**.
+
+**Extensions (Phase 4 — pgRouting):**
+
+```powershell
+docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT extname, extversion FROM pg_extension WHERE extname IN ('postgis', 'pgrouting');"
+```
+
+Expect `postgis` and `pgrouting` (4.0.x). If `pgrouting` is missing on an upgraded machine, see [`phase4_pgrouting_adoption_and_routing_queries.md`](phase4_pgrouting_adoption_and_routing_queries.md) §3.3.
 
 **Neo4j:**
 
@@ -173,7 +181,7 @@ docker exec dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -c "SELECT C
 2. Create a new connection with the settings from Section 3.
 3. Open SQL editor → run queries against `dm_south_sudan`.
 
-PostGIS is enabled; geometry columns are on tables like `health_facilities`, `road_edges`, etc.
+PostGIS and **pgRouting** are enabled; routing queries use `pgr_dijkstraCost` on `road_edges`. Geometry columns are on tables like `health_facilities`, `road_edges`, etc.
 
 ### Main tables (what to query)
 
@@ -224,34 +232,26 @@ WHERE state_code = 'SS01'
 ORDER BY idp_individuals DESC;
 ```
 
-**PostGIS — check extension and sample geometry:**
+**PostGIS + pgRouting — check extensions:**
 
 ```sql
-SELECT PostGIS_Version();
-SELECT facility_id, facility_name, ST_AsText(geom) AS wkt
-FROM health_facilities
-WHERE geom IS NOT NULL
-LIMIT 3;
+SELECT extname, extversion FROM pg_extension WHERE extname IN ('postgis', 'pgrouting');
+SELECT pgr_version();
 ```
 
 **Q4-style aggregation (relational showcase):**
 
 ```sql
 SELECT * FROM v_state_humanitarian_stats
-ORDER BY total_idp_individuals DESC
+ORDER BY idp_individuals_total DESC
 LIMIT 5;
 ```
 
-**Q1 smoke test — camp has a connector:**
+**Q1 — nearest Hospital/PHCC (pgRouting — primary track):**
 
-```sql
-SELECT ds.site_id, ds.site_name, pc.road_node_id, pc.length_m
-FROM displacement_sites ds
-JOIN poi_connectors pc ON pc.poi_node_id = ds.site_id
-WHERE ds.site_id = 'SSD-DS-SS0101_0005';
-```
+Pipe the file from the host (see Section 11). Expected smoke result: **Gumbo PHCC**, **5191.26 m**.
 
-Full benchmark SQL templates: `[phase5_benchmark_queries.md](phase5_benchmark_queries.md)`.
+**Q4-style aggregation (relational showcase):**
 
 **Run validation script from file:**
 
@@ -343,23 +343,14 @@ MATCH (h:HealthFacility:LogisticalHub)
 RETURN h.facility_id, h.name, h.state_code;
 ```
 
-**Q1 — nearest Hospital/PHCC from Don Bosco camp:**
+**Q1 — nearest Hospital/PHCC (GDS Dijkstra — use repo file, not hop-based template below):**
+
+Implemented query: `src/queries/neo4j/q1_nearest_hospital.cypher` (GDS). Legacy hop-based template in `phase5_benchmark_queries.md` is superseded for Phase 4 artifacts.
 
 ```cypher
-MATCH (c:DisplacementSite {poi_node_id: 'SSD-DS-SS0101_0005'})-[cOut:CONNECTOR]->(start:RoadNode)
-MATCH (hf:HealthFacility)
-WHERE hf.facility_type IN ['Hospital', 'PHCC']
-MATCH (hf)-[hOut:CONNECTOR]->(end:RoadNode)
-MATCH p = shortestPath((start)-[:ROAD_SEGMENT*]->(end))
-WITH c, hf, cOut, hOut, p,
-     cOut.length_m + reduce(d = 0, r IN relationships(p) | d + r.length_m) + hOut.length_m AS total_m
-RETURN c.name AS camp,
-       hf.name AS facility,
-       hf.facility_type AS type,
-       total_m AS distance_m,
-       length(p) AS road_hops
-ORDER BY total_m
-LIMIT 1;
+// Quick connector check only:
+MATCH (c:DisplacementSite {poi_node_id: 'SSD-DS-SS0101_0005'})-[conn:CONNECTOR]->(rn:RoadNode)
+RETURN c.name, conn.length_m, rn.node_id;
 ```
 
 More templates (Q2–Q5): `[phase5_benchmark_queries.md](phase5_benchmark_queries.md)`. Reference file: `src/db/neo4j/import.cypher`.
@@ -386,10 +377,11 @@ More templates (Q2–Q5): `[phase5_benchmark_queries.md](phase5_benchmark_querie
 
 **Question:** Shortest path routing from a camp
 
+| PostgreSQL (primary) | PostgreSQL (secondary) | Neo4j (primary) |
+| -------------------- | ------------------------ | --------------- |
+| `q1_nearest_hospital_pgrouting.sql` — `pgr_dijkstraCost` | `q1_nearest_hospital.sql` — recursive CTE (~75 s) | `q1_nearest_hospital.cypher` — GDS Dijkstra |
 
-| PostgreSQL                                                   | Neo4j                                                  |
-| ------------------------------------------------------------ | ------------------------------------------------------ |
-| Recursive CTE on `road_edges` + connectors (see Phase 5 doc) | `shortestPath` on `ROAD_SEGMENT` (see Section 5 above) |
+See Section 11 for run commands. Analysis: [`phase4_pgrouting_adoption_and_routing_queries.md`](phase4_pgrouting_adoption_and_routing_queries.md).
 
 
 ---
@@ -510,10 +502,70 @@ STOP:          docker compose stop
 
 ---
 
+## 11. Phase 4 query files (`src/queries/`)
+
+The project folder is **not mounted** inside Docker containers. Pipe SQL/Cypher from the host with `Get-Content … | docker exec -i …` (Windows) or `docker exec -i … < file` (bash).
+
+Parameters: `src/queries/_benchmark_params.yaml` (camp `SSD-DS-SS0101_0005`, state `SS01`, hospital `SSD-HF-000055`, hub `HUB-001`, max distance `50000` m).
+
+### Q1 — nearest Hospital/PHCC
+
+```powershell
+# PostgreSQL — pgRouting (primary)
+Get-Content src/queries/postgresql/q1_nearest_hospital_pgrouting.sql |
+  docker exec -i dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -v camp_id=SSD-DS-SS0101_0005
+
+# PostgreSQL — CTE baseline (secondary, ~75 s)
+Get-Content src/queries/postgresql/q1_nearest_hospital.sql |
+  docker exec -i dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan -v camp_id=SSD-DS-SS0101_0005 -v max_hops=30
+
+# Neo4j — GDS
+Get-Content src/queries/neo4j/q1_nearest_hospital.cypher |
+  docker exec -i dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev --param "camp_id => 'SSD-DS-SS0101_0005'"
+```
+
+### Q2 — all SS01 camps → Juba Teaching Hospital
+
+```powershell
+Get-Content src/queries/postgresql/q2_state_camps_to_hospital_pgrouting.sql |
+  docker exec -i dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan `
+    -v state_code=SS01 -v target_hospital_id=SSD-HF-000055
+
+Get-Content src/queries/neo4j/q2_state_camps_to_hospital.cypher |
+  docker exec -i dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev `
+    --param "state_code => 'SS01'" --param "target_facility_id => 'SSD-HF-000055'"
+```
+
+### Q3 — hub reachability (50 km)
+
+```powershell
+Get-Content src/queries/postgresql/q3_hub_reachability_pgrouting.sql |
+  docker exec -i dm-south-sudan-postgis psql -U dm_ssd -d dm_south_sudan `
+    -v hub_id=HUB-001 -v max_distance_m=50000
+
+Get-Content src/queries/neo4j/q3_hub_reachability.cypher |
+  docker exec -i dm-south-sudan-neo4j cypher-shell -u neo4j -p dm_ssd_dev `
+    --param "hub_id => 'HUB-001'" --param "max_distance_m => 50000"
+```
+
+### Pilot benchmark (Windows amd64)
+
+```powershell
+conda activate dm-south-sudan
+python scripts/benchmark_routing_queries.py --runs 5 --warmup 1
+```
+
+Output: `output/routing_benchmark_results.json`. Use `--skip-slow-cte` to omit Q2/Q3 PG-CTE (they do not finish in practical time).
+
+Full Phase 4 narrative: [`phase4_pgrouting_adoption_and_routing_queries.md`](phase4_pgrouting_adoption_and_routing_queries.md).
+
+---
+
 ## Related documents
 
-- `[README.md](../README.md)` — full install pipeline (Windows + macOS)
-- `[phase3_database_population.md](phase3_database_population.md)` — expected counts and validation
+- [`README.md`](../README.md) — full install pipeline (Windows + macOS, Steps 0–7)
+- [`phase4_pgrouting_adoption_and_routing_queries.md`](phase4_pgrouting_adoption_and_routing_queries.md) — Phase 4 report
+- [`phase3_database_population.md`](phase3_database_population.md) — expected counts and validation
 - `[phase5_benchmark_queries.md](phase5_benchmark_queries.md)` — Q1–Q5 query templates
 - `[phase2_relational_schema.md](phase2_relational_schema.md)` — PostgreSQL tables
 - `[phase2_graph_schema.md](phase2_graph_schema.md)` — Neo4j labels and relationships

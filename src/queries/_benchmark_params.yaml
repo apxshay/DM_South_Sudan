@@ -1,0 +1,22 @@
+# Phase 4 benchmark parameters — derived from loaded data (Phase 3 smoke + reference CSVs).
+# Used by query artifacts and validation; not copied from phase5_benchmark_queries.md.
+
+q1:
+  camp_id: SSD-DS-SS0101_0005 # Don Bosco, Central Equatoria (Phase 3 smoke)
+
+q2:
+  state_code: SS01 # Central Equatoria (15 camps in DB)
+  target_hospital_id: SSD-HF-000055 # Juba Teaching Hospital (logistical_hubs HUB-001)
+
+q3:
+  hub_id: HUB-001 # Juba Teaching Hospital
+  max_distance_m: 50000
+
+q4:
+  # Uses all states; no single-scenario ID required.
+
+q5:
+  camp_id: SSD-DS-SS0101_0005
+  hospital_id: SSD-HF-000055
+  evacuees: 200
+  hospital_slots: 250

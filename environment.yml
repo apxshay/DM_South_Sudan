@@ -21,3 +21,4 @@ dependencies:
       - neo4j>=5.0
       - python-dotenv>=1.0
       - osmnx>=2.0
+      - networkx>=3.0

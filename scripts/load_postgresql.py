@@ -466,7 +466,17 @@ def smoke_test_q1(conn) -> dict:
     }
 
 
-def validate_geometry_samples(conn) -> list[bool]:
+def validate_extensions(conn) -> dict[str, str]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT extname, extversion
+            FROM pg_extension
+            WHERE extname IN ('postgis', 'pgrouting')
+            ORDER BY extname
+            """
+        )
+        return {row[0]: row[1] for row in cur.fetchall()}
     checks = []
     with conn.cursor() as cur:
         for table in ("health_facilities", "road_nodes", "road_edges", "poi_connectors"):
@@ -496,6 +506,11 @@ def main() -> int:
         geom_ok = validate_geometry_samples(conn) if not args.schema_only else []
 
         print("PostgreSQL load complete.")
+        extensions = validate_extensions(conn)
+        if extensions:
+            print("Extensions:")
+            for name, version in extensions.items():
+                print(f"  {name}: {version}")
         for table, expected in EXPECTED_COUNTS.items():
             actual = counts.get(table, 0)
             status = "OK" if actual == expected else "MISMATCH"

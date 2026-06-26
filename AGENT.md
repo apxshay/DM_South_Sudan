@@ -98,11 +98,11 @@ See **`AGENT_PHASE3.md`** for full instructions.
 
 Implement the five benchmark queries from `docs/phase5_benchmark_queries.md` in both PostgreSQL and Neo4j:
 
-* Q1 — Nearest hospital/PHCC from a camp
-* Q2 — Multi-camp → one referral hospital
-* Q3 — Reachability within 50 km of a hub
+* Q1–Q3 — **Dual-track PostgreSQL** (PG-CTE secondary + **PG-pgRouting primary**) + **Neo4j GDS** (primary graph)
 * Q4 — State humanitarian aggregations (RDBMS showcase)
-* Q5 — Evacuation max flow (GDS on Neo4j; application-layer on PostgreSQL)
+* Q5 — Evacuation max flow (GDS on Neo4j; NetworkX on PostgreSQL)
+
+**pgRouting** is bundled via Docker image `pgrouting/pgrouting:16-3.5-4.0` at pipeline Step 4; enabled in `schema.sql` at Step 5. See `docs/phase4_pgrouting_adoption_and_routing_queries.md`.
 
 ### Phase 5 — Benchmarking
 
@@ -152,11 +152,13 @@ Regenerate Phase 2: `./scripts/bootstrap.sh --from network` or run scripts liste
 
 PostgreSQL/PostGIS and Neo4j loaders implemented (`scripts/load_postgresql.py`, `scripts/load_neo4j.py`, `scripts/populate_databases.py`), Docker Compose stack added, counts and Q1 smoke prerequisites validated on Windows amd64 and macOS. Reports: `docs/phase3_database_population.md`, `docs/database_usage_guide.md`.
 
-**Recommended benchmark host:** Windows 10 + AMD Ryzen 5 — both `postgis/postgis` and `neo4j` Docker images run native `linux/amd64`. macOS Apple Silicon runs Neo4j natively but PostGIS under x86 emulation (not fair for timing comparisons).
+**Phase 4 — Query Design & Implementation: IN PROGRESS** (2026-06-26)
 
-**Phase 5 — Benchmarking: NEXT**
+Q1–Q3 routing implemented with **dual-track PostgreSQL** (PG-CTE + PG-pgRouting) and **Neo4j GDS**. pgRouting adopted via `pgrouting/pgrouting:16-3.5-4.0` Docker image. Pilot routing benchmark: `output/routing_benchmark_results.json`. Reports: **`docs/phase4_pgrouting_adoption_and_routing_queries.md`**, **`docs/phase4_query_implementation.md`**. Remaining: Q4, Q5.
 
-Implement and run Q1–Q5 from `docs/phase5_benchmark_queries.md` against live databases on the Ryzen machine.
+**Phase 5 — Benchmarking:** formal N-run medians, complexity metrics, platform metadata on **Windows amd64** (after Q4–Q5 complete).
+
+**Recommended benchmark host:** Windows 10 + AMD Ryzen 5 — both `pgrouting/pgrouting` and `neo4j` Docker images run native `linux/amd64`. macOS Apple Silicon runs Neo4j natively but PostGIS/pgRouting under x86 emulation (not fair for timing comparisons).
 
 ### Repository layout
 
@@ -165,8 +167,9 @@ data_management/
 ├── AGENT.md                          # Orchestrator
 ├── AGENT_PHASE2.md                   # Phase 2 (complete)
 ├── AGENT_PHASE3.md                   # Phase 3 (complete)
+├── AGENT_PHASE4.md                   # Phase 4 (next)
 ├── README.md
-├── docker-compose.yml                # PostGIS + Neo4j
+├── docker-compose.yml                # pgRouting/PostGIS + Neo4j
 ├── .env.example                      # DB credentials template
 ├── environment.yml                   # Conda/Miniforge environment (recommended on Windows)
 ├── requirements.txt
@@ -230,8 +233,8 @@ data_management/
 └── src/                              # Placeholder for future code
     ├── etl/
     ├── db/
-    ├── queries/
-    └── benchmarks/
+    ├── queries/                      # Phase 4: postgresql/ + neo4j/ query files
+    └── benchmarks/                   # (Phase 5 harness)
 ```
 
 ### Datasets acquired
@@ -319,21 +322,24 @@ GeoPandas/GDAL must come from **conda-forge** (`environment.yml`). Road topology
 
 ## Next Expected Milestone
 
-**Phase 5 — Benchmarking** (see `docs/phase5_benchmark_queries.md`)
+**Phase 4 — Query Design & Implementation** (see `AGENT_PHASE4.md`, `docs/phase4_pgrouting_adoption_and_routing_queries.md`)
 
-1. Run on **Windows 10 + AMD Ryzen 5** (native `amd64` for both databases).
-2. Warm up PostgreSQL and Neo4j; run Q1–Q5 with repeated trials.
-3. Record median latency, implementation complexity, and platform metadata in thesis.
+1. Ensure Steps 4–5 use pgRouting-enabled Docker image (not a post-hoc install).
+2. Complete Q4–Q5 under `src/queries/`.
+3. Run formal Phase 5 benchmarks on Windows amd64.
 
-**Phase 3 complete:** loaders in `scripts/`, Docker in `docker-compose.yml`, report in `docs/phase3_database_population.md`.
+**Phase 5 — Benchmarking** follows Phase 4: warm-up, repeated runs, median latency, implementation complexity on **Windows amd64**. Primary routing comparison: **PG-pgRouting vs Neo4j-GDS**.
 
 Reference documents:
 - [`README.md`](README.md) — **main setup guide** (Windows + macOS pipeline)
+- [`AGENT_PHASE4.md`](AGENT_PHASE4.md) — Phase 4 agent instructions
+- [`docs/phase4_pgrouting_adoption_and_routing_queries.md`](docs/phase4_pgrouting_adoption_and_routing_queries.md) — Phase 4 report (pgRouting, benchmarks)
+- [`docs/phase4_query_implementation.md`](docs/phase4_query_implementation.md) — Phase 4 technical log
 - [`docs/database_usage_guide.md`](docs/database_usage_guide.md) — connect and query both databases
 - `docs/phase3_database_population.md` — validation counts and platform notes
 - `docs/phase2_relational_schema.md`
 - `docs/phase2_graph_schema.md`
-- `docs/phase5_benchmark_queries.md`
+- `docs/phase5_benchmark_queries.md` — Q1–Q5 templates (implement in Phase 4)
 - `AGENT_PHASE3.md`
 
 ---

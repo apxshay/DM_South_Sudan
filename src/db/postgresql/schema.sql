@@ -3,6 +3,7 @@
 -- Source: docs/phase2_relational_schema.md
 
 CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS pgrouting;
 
 -- ---------------------------------------------------------------------------
 -- Admin dimensions (SS 2023 Admin_data)
